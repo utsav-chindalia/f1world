@@ -41,6 +41,7 @@ export default class GameScene extends Phaser.Scene {
     const { width, height } = this.scale;
 
     // Create the overlay only on first visit
+    this.isFirstVisit = !localStorage.getItem('hasVisitedBefore');
     if (this.isFirstVisit) {
       this.createOverlay();
       localStorage.setItem('hasVisitedBefore', 'true');
