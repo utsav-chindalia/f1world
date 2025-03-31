@@ -1,0 +1,140 @@
+---
+description: 
+globs: 
+alwaysApply: false
+---
+## F1 Edu-Racer Prototype – Implementation Plan 
+
+---
+
+### Scope:
+- Core Reaction Timer with feedback
+- Basic car movement post-start
+- Main Menu UI with only "Start Race" enabled
+- All other features (tutorials, ghost mode, settings) shown but disabled
+
+---
+
+### Phase 0: Project Setup 
+
+1. **Initialize Project with Vite + Phaser**
+   - Set up a new Vite project:  
+     `npm create vite@latest f1-edu-racer-prototype`
+   - Install Phaser:  
+     `npm install phaser`
+   - Setup folder structure:
+     ```
+     /src
+       /scenes
+         MainMenuScene.js
+         GameScene.js
+         ResultScene.js
+       /assets
+         /sprites
+         /ui
+     main.js
+     index.html
+     ```
+
+2. **Configure Phaser Game Config**
+   - Set canvas size, physics config
+   - Register scenes: MainMenuScene → GameScene → ResultScene
+
+---
+
+### Phase 1: Reaction Timer Game Logic 
+
+3. **Create 5-Light Countdown System**
+   - Show 5 red lights on screen (interval: 0.5s per light)
+   - After all 5 lights: wait random time (1–3s) → show green light
+   - On green: start reaction timer
+
+4. **Capture User Input for Reaction**
+   - Monitor for `Space` or `Up Arrow` key
+   - On press:
+     - If before green light: mark as false start
+     - If after green light: record elapsed time (in ms)
+
+5. **Display Result Feedback**
+   - Create ResultScene to show:
+     - “Jump Start” (if early)
+     - “Perfect Start” with time (e.g., 0.24s)
+   - Add retry button → reload GameScene
+
+---
+
+### Phase 2: Basic Car Movement 
+
+6. **Add Car Sprite**
+   - Position at bottom center of screen
+   - Use placeholder F1 top-down image
+
+7. **Enable Movement**
+   - After green light and valid reaction input:
+     - Allow car to move forward on key press (`Up Arrow`)
+   - Implement basic forward velocity (no physics or turns)
+
+---
+
+### Phase 3: Menu System 
+
+8. **Create MainMenuScene**
+   - Buttons:
+     - “Start Race” – enabled, navigates to GameScene
+     - “Tutorials” – disabled (greyed out)
+     - “Ghost Mode” – disabled
+     - “Settings” – disabled
+
+9. **Style Disabled Buttons**
+   - Greyed out
+   - Tooltip on hover: “Coming Soon”
+
+---
+
+### Phase 4: UI & Feedback Polish 
+
+10. **Add Reaction Timer UI**
+    - Timer displayed after green light
+    - Text animation on result screen
+
+11. **Add Sound FX (Optional)**
+    - Button clicks
+    - Light ticks
+    - Green light cue
+
+12. **Responsive HUD Layout**
+    - Position HUD elements with safe margins
+    - Scale text and lights appropriately
+
+---
+
+### Phase 5: Testing & Finalization 
+
+13. **Test All Scenarios**
+    - Jump start triggers correctly
+    - Accurate timing and feedback
+    - Car moves only after valid start
+    - Menu buttons behave correctly
+
+14. **Performance Check**
+    - Run in Chrome, Firefox
+    - Confirm 60 FPS on mid-range laptop
+
+15. **Package & Deploy (Optional)**
+    - Build with `vite build`
+    - Deploy to Netlify or Vercel
+
+---
+
+### Deliverables
+
+- **Main Menu**
+  - Working "Start Race" button
+  - Disabled: Tutorials, Ghost Mode, Settings
+
+- **Reaction Timer Game**
+  - 5-light start system
+  - Green light triggers random time
+  - Reaction capture with penalty if early
+  - Car movement on success
+  - Result screen with feedback

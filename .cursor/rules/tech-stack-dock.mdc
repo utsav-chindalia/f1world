@@ -1,0 +1,126 @@
+---
+description: 
+globs: 
+alwaysApply: false
+---
+**Tech Stack Specification** with:
+
+## F1 Edu-Racer – Tech Stack Specification
+
+---
+
+### 1. **Frontend**
+
+#### **Core Game Framework**
+- **[Phaser.js v3.60+](mdc:https:/phaser.io/phaser3)**
+  - Game scenes, physics, camera, input, sprite rendering.
+  - Modular structure, WebGL & Canvas support.
+  - Install via npm:
+    ```bash
+    npm install phaser
+    ```
+
+#### **Rendering & Web Environment**
+- **HTML5 + Canvas API** (built into Phaser)
+- **JavaScript (ES6+)** – core game logic and utilities
+- **Vite** – lightweight dev server and bundler
+  - Fast, hot-reloading, ideal for game dev
+  - [https://vitejs.dev/](mdc:https:/vitejs.dev)
+  - Install:
+    ```bash
+    npm create vite@latest
+    ```
+
+#### **UI and Menus**
+- **Phaser GUI Plugin** *(or custom Phaser scenes)*
+  - Menu overlays, HUD elements, tooltips.
+- Optional: [RexUI](mdc:https:/rexrainbow.github.io/phaser3-rex-notes/docs/site/ui-overview)
+  - Powerful UI toolkit for Phaser.
+
+---
+
+### 2. **Game Assets Tools**
+
+| Type | Tool | Purpose |
+|------|------|---------|
+| **Sprites & Icons** | [GIMP](mdc:https:/www.gimp.org) / [Figma](mdc:https:/www.figma.com) / [Photoshop](mdc:https:/www.adobe.com/in/products/photoshop.html) | Create cars, tracks, HUD elements |
+| **Spritesheet Packing** | [TexturePacker](mdc:https:/www.codeandweb.com/texturepacker) | Bundle animations |
+| **Map Design** | [Tiled Map Editor](mdc:https:/www.mapeditor.org) | Design top-down tracks in 2D |
+| **Audio FX** | [Bfxr](mdc:https:/bfxr.net) / [Audacity](mdc:https:/www.audacityteam.org) | Create engine, collision, UI sounds |
+
+---
+
+### 3. **State Management & Storage**
+
+- **LocalStorage API** – built into browsers  
+  - Store settings, progress, achievements  
+  - No external setup required  
+  - [MDN Docs](mdc:https:/developer.mozilla.org/en-US/docs/Web/API/Window/localStorage)
+
+---
+
+### 4. **APIs for Ghost Mode (Phase 3)**
+
+- **[Ergast API](mdc:https:/ergast.com/mrd)**
+  - Source for F1 lap times, sector data, driver info
+  - Free and community-maintained
+  - Format: JSON/XML
+
+  Example usage:
+  ```bash
+  https://ergast.com/api/f1/2023/monaco/qualifying.json
+  ```
+
+- **[Axios](mdc:https:/axios-http.com)**
+  - Promise-based HTTP client
+  - Install:
+    ```bash
+    npm install axios
+    ```
+
+---
+
+### 5. **Performance & Optimization**
+
+- **[Stats.js](mdc:https:/github.com/mrdoob/stats.js)**
+  - Lightweight FPS and performance monitor
+- **[TinyPNG](mdc:https:/tinypng.com)** – Compress sprites
+- **[SVGO](mdc:https:/github.com/svg/svgo)** – Optimize SVG assets
+
+---
+
+### 6. **Testing & Debugging**
+
+- **Chrome DevTools** – JS profiling, FPS, memory
+- **[Jest](mdc:https:/jestjs.io)** – Optional for testing core logic/utils
+  ```bash
+  npm install --save-dev jest
+  ```
+
+---
+
+### 7. **Deployment Tools**
+
+- **[Netlify](mdc:https:/www.netlify.com)** or **[Vercel](mdc:https:/vercel.com)**
+  - Easy drag-and-drop or GitHub CI/CD hosting
+  - Free tier supports global CDN
+- **[GitHub Pages](mdc:https:/pages.github.com)** – Alternate for lightweight hosting
+
+---
+
+### 8. **Version Control & Team Collaboration**
+
+- **Git** + **GitHub**
+  - Branching, Pull Requests, Issues, Project Boards
+- Optional: **Notion** or **Trello** for roadmap and asset tracking
+
+---
+
+### 9. **Optional Stretch Tools**
+
+| Feature | Tool | Use |
+|--------|------|-----|
+| Leaderboards / Cloud Saves | [Supabase](mdc:https:/supabase.com) or [Firebase](mdc:https:/firebase.google.com) | Simple backend-as-a-service |
+| Multiplayer (future) | [Colyseus](mdc:https:/www.colyseus.io) | Node.js-based real-time multiplayer server |
+| Analytics | [PostHog](mdc:https:/posthog.com) or Google Analytics | Track usage, session events |
+

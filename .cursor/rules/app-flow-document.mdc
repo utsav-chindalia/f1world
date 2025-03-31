@@ -1,0 +1,178 @@
+---
+description: 
+globs: 
+alwaysApply: false
+---
+
+## App Flow Document: F1 Edu-Racer
+
+---
+
+### 1. App Launch
+
+**Entry Point:**
+- Web link loads game on browser.
+- Check for:
+  - Saved progress (local storage)
+  - Device compatibility (basic check for screen size and keyboard)
+
+**Screen: Loading Screen**
+- Progress bar with animated F1 car
+- Version info, tips (e.g., “Use DRS in designated zones!”)
+
+---
+
+### 2. Main Menu
+
+**Options:**
+- Start Race  
+- Tutorials  
+- Achievements  
+- Settings  
+- Leaderboards (Phase 3/stretch)  
+- Glossary / Learn F1  
+
+---
+
+### 3. Tutorial Mode Flow
+
+**Screen: Tutorial Select**
+- Grid/List of Tutorials (locked/unlocked):
+  - Race Starts
+  - Qualifying
+  - Tire Temperature
+  - Pit Stop Strategy
+  - Aerodynamics Basics
+  - Racecraft (overtaking)
+
+**Screen: Tutorial Gameplay**
+- Objective shown at top
+- Step-by-step popups and on-screen guidance
+- Feedback after each lesson (e.g., “Perfect Start: 0.24s”)
+
+**End:**
+- Badge unlocked
+- Next tutorial unlocked
+- Option: Retry or return to Main Menu
+
+---
+
+### 4. Race Mode Flow
+
+**Screen: Race Setup**
+- Select Track (e.g., Monaco, Monza)
+- Select Mode:
+  - Single Lap
+  - Multi-Lap Race
+  - Time Trial
+- Select Difficulty (Rookie, Pro, Ghost Mode)
+- Tire Choice (Soft, Medium, Hard)
+- Aero Setup (Low, Medium, High Downforce via slider)
+
+**Screen: Qualifying (Optional)**
+- Timer starts
+- Lap time and sector comparison
+- Feedback on performance (e.g., “You’re 0.5s off the ideal lap”)
+
+**Screen: Race**
+- Start sequence with 5 red lights and reaction timer
+- In-game HUD includes:
+  - Lap counter
+  - Speed
+  - Tire wear
+  - Fuel gauge
+  - Position
+  - DRS zone indicators
+
+**Events during race:**
+- Pit stops (player and AI)
+- Tire wear visualization
+- Damage effects
+- Off-line driving penalties
+- Overtake challenges
+
+**Post-Race Screen:**
+- Final position
+- Lap breakdown
+- Strategy summary
+- Overtake stats
+- Feedback on performance
+- Options: Retry, Next Track, or Main Menu
+
+---
+
+### 5. Ghost Mode Flow (Phase 3)
+
+**Screen: Select Ghost Lap**
+- Choose from unlocked real laps (e.g., “Verstappen – Monaco 2023”)
+- Display lap time and lap data
+
+**Race Against Ghost**
+- Transparent ghost car races against the player
+- Sector-by-sector comparison
+- Option to replay or retry
+
+---
+
+### 6. Settings
+
+Options:
+- Sound: On/Off  
+- Difficulty: Easy, Medium, Hard  
+- Toggle mechanics (Fuel, Damage, Overtake Challenges)  
+- Reset Progress  
+
+---
+
+### 7. Achievements
+
+**Milestone List:**
+- Perfect Start Streak
+- First Clean Overtake
+- Win Without Pitting
+- Track progress for each achievement
+
+---
+
+### 8. Glossary / Learn F1
+
+**Interactive Glossary:**
+- DRS explained
+- Tire compound differences
+- Pit stop strategy
+- Aerodynamics in F1
+
+---
+
+### 9. Local Data Flow
+
+- Save progress (tutorials completed, tracks unlocked, ghost laps)
+- Store personal best lap times
+- Track achievements unlocked
+- Save user settings and preferences
+
+---
+
+### 10. Developer Console (Optional Debug Mode)
+
+For internal testing:
+- Unlock all tracks
+- Inject or override ghost lap data
+- Modify car performance
+- AI tuning tools
+
+---
+
+## High-Level User Flow Summary
+
+```
+App Launch
+   ↓
+Main Menu
+   ├── Tutorials → Complete lessons → Unlock features
+   ├── Start Race → Setup → Qualify → Race → Post-Race
+   ├── Ghost Mode → Select Ghost Lap → Race → Feedback
+   ├── Settings / Achievements / Glossary
+```
+
+---

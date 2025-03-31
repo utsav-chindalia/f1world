@@ -1,0 +1,219 @@
+---
+description: 
+globs: 
+alwaysApply: false
+---
+# Product Requirements Document (PRD)  
+## F1 Edu-Racer: A 2D Web App Game
+
+### 1. Overview
+#### Product Name
+F1 Edu-Racer (working title)
+
+#### Purpose
+F1 Edu-Racer is a 2D web-based game that teaches Formula 1 mechanics—qualifying, race lines, tire management, pit strategy, DRS, aerodynamics, race strategy, and more—through an interactive racing experience. Using a top-down, zoomed-out, follow-behind camera view, it balances simplicity and immersion, progressing toward racing against ghost laps of real F1 drivers and now includes competitive racing elements like reaction-based starts and multi-car grids.
+
+#### Goals
+- Educate players on F1 concepts in a fun, hands-on way.
+- Deliver a lightweight, browser-friendly experience for beginners and casual fans.
+- Add competitive and dynamic features to engage a broader audience, including actual racing scenarios.
+
+#### Target Audience
+- F1 beginners learning the sport.
+- Casual gamers interested in racing and strategy.
+- F1 enthusiasts wanting to race against AI or real driver data.
+
+#### Current Date
+March 29, 2025
+
+---
+
+### 2. Features
+#### 2.1 Core Gameplay
+- **Perspective**: 2D top-down view with a dynamic camera following the car from a slightly offset “behind” angle, zoomed out to show track context.
+- **Controls**: Keyboard inputs (e.g., arrows or WASD for steering, acceleration, braking).
+- **Modes**:
+  - **Tutorial Mode**: Lessons teaching F1 mechanics (e.g., “Master the Race Start”).
+  - **Race Mode**: Single-lap, multi-lap, or full races against time, AI, or ghosts.
+  - **Ghost Mode** (Phase 3): Race against ghost laps from real F1 driver data.
+
+#### 2.2 Educational Mechanics
+1. **Qualifying**
+   - Objective: Set the fastest lap within a time limit.
+   - Feedback: Sector times and comparison to an “ideal” lap.
+2. **Race Line**
+   - Visual overlay showing optimal path (fades as player improves).
+   - Penalty: Slower speeds or increased tire wear for off-line driving.
+3. **Tire Temperature**
+   - Gauge: Cold (low grip), Optimal, Overheated (fast wear).
+   - Impact: Adjusts car handling based on driving style.
+4. **Pit Strategy & Tire Wear**
+   - Options: Soft (fast, short-lived), Medium, Hard (slow, durable) compounds.
+   - Indicator: Visual tire degradation (e.g., color-coded wheels).
+   - Decision: Pit stop timing based on wear and race goals.
+5. **DRS (Drag Reduction System)**
+   - Activation: Button in designated zones for speed boost.
+   - Visual: Highlighted track sections.
+6. **Aerodynamics (Aero)**
+   - Setup: Simple slider (high downforce for corners vs. low for straights).
+   - Effect: Impacts cornering grip and top speed.
+7. **Tracks & Corners**
+   - Simplified 2D layouts of real F1 circuits (e.g., Monaco, Monza).
+   - Famous corners (e.g., Casino Square) with unique challenges.
+8. **Race Strategy**
+   - Choices: Aggressive (push tires) vs. conservative (save wear/fuel).
+   - Scenarios: Safety car or weather changes (stretch goal).
+
+#### 2.3 New Features
+9. **Race Start Reaction Timer**
+   - **Mechanic**: Players react to a 5-light sequence (red lights → green) at race start.
+   - **Objective**: Press accelerate within a tight window (e.g., 0.2-0.5s after green) for optimal launch; too early = jump start penalty (5s delay), too late = slower start.
+   - **Educational Value**: Teaches F1 start precision and reaction skills.
+   - **Visual**: Light sequence above the car; feedback post-start (e.g., “Perfect: 0.23s”).
+10. **Actual Racing (10 Cars)**
+    - **Mechanic**: Race against 9 AI-controlled cars in a 10-car grid.
+    - **Grid Start**: Players begin in a random or earned position (based on qualifying).
+    - **AI Behavior**: Basic overtaking, defending, and pit strategies; varies by difficulty (e.g., Rookie, Pro).
+    - **Objective**: Finish in the highest position possible, balancing speed and strategy.
+    - **Educational Value**: Introduces overtaking, positioning, and racecraft.
+11. **Overtaking Challenges**
+    - **Mechanic**: Mini-scenarios where players must pass an AI car (e.g., “Overtake before Turn 3”).
+    - **Tools**: Use DRS, slipstream (slight speed boost behind cars), or out-braking.
+    - **Reward**: Points or unlocks for clean overtakes.
+12. **Fuel Management**
+    - **Mechanic**: Fuel gauge depletes over laps; players choose rich (fast) or lean (efficient) modes.
+    - **Impact**: Rich burns fuel faster but boosts speed; lean saves fuel but slows pace.
+    - **Strategy**: Pit for fuel or stretch it to the end—teaches F1 fuel tactics.
+13. **Damage System**
+    - **Mechanic**: Minor collisions (with AI or walls) reduce car performance (e.g., -10% top speed).
+    - **Visual**: Cracked wing sprite or smoke effect.
+    - **Fix**: Pit stop repairs damage but costs time.
+    - **Educational Value**: Highlights F1’s precision driving and consequence of errors.
+
+#### 2.4 Progression
+- **Unlocks**: New tracks, mechanics, and AI difficulty as players complete tutorials/races.
+- **Difficulty**: Scales from solo laps to 10-car races and ghost mode.
+- **Rewards**: Unlock ghost laps (e.g., Verstappen’s Monaco win), car liveries, or famous races.
+
+#### 2.5 User Interface
+- **Main Menu**: Start, Tutorials, Race Select, Settings, Leaderboards (stretch).
+- **In-Game HUD**: Speed, lap time, tire status, fuel gauge, DRS button, position (in 10-car races), reaction timer (start).
+- **Post-Race Screen**: Position, lap breakdown, strategy feedback, overtake stats, retry option.
+- **Educational Aids**: Tooltips (e.g., “Slipstream: Gain speed behind rivals”) and glossary.
+
+#### 2.6 Ghost Racing (Phase 3)
+- **Data**: Historical F1 lap times (e.g., via Ergast API).
+- **Visual**: Transparent ghost car racing alongside player.
+- **Goal**: Match or beat pro times with feedback.
+
+#### 2.7 Additional Engagement Features
+- **Achievements**: Milestones like “Perfect Start Streak” or “Win Without Pitting.”
+- **Track Conditions**: Optional wet/dry modes (affects grip, tire choice) as a stretch goal.
+- **Race Replay**: Simple 2D replay of player’s lap/race to review strategy or share.
+
+---
+
+### 3. Functional Requirements
+#### 3.1 Gameplay
+- Players control one F1 car; camera follows dynamically, offset “behind” and zoomed out.
+- Tracks scroll smoothly; sprites rotate for steering; AI cars move independently.
+- Mechanics (tire temp, fuel, damage) update in real-time with visual cues.
+- 10-car races include basic collision detection and AI pathfinding.
+
+#### 3.2 Technical
+- **Platform**: Web app (HTML5, JavaScript, Canvas/WebGL).
+- **Game Engine**: Phaser.js or PixiJS for 2D rendering and sprite management.
+- **Physics**: Lightweight system for speed, grip, tire wear, slipstream, collisions.
+- **Assets**: 2D sprites for cars (player + 9 AI), tracks, UI (e.g., fuel gauge, lights).
+- **Storage**: Local storage for progress, settings, unlocks.
+- **Performance**: Target 60 FPS on mid-range devices with 10 cars on-screen.
+
+#### 3.3 Data Integration (Phase 3)
+- Source: Historical F1 lap times and track data (e.g., Ergast API or static JSON).
+- Format: Convert lap times into ghost car positions.
+
+---
+
+### 4. Non-Functional Requirements
+- **Accessibility**: Runs on major browsers (Chrome, Firefox, Safari) without plugins.
+- **Scalability**: Modular design for adding cars, tracks, or modes.
+- **Usability**: Intuitive controls; tutorials <5 minutes; races feel fair and fun.
+- **Educational Value**: Feedback ties gameplay to F1 concepts (e.g., “Late reaction cost 0.8s”).
+
+---
+
+### 5. Development Phases
+#### Phase 1: Minimum Viable Product (MVP)
+- **Scope**: 
+  - 1 track (e.g., Monaco).
+  - Mechanics: Race line, tire temp, qualifying, reaction timer.
+  - Tutorial mode (3-5 lessons).
+- **Deliverables**: Playable single-lap demo with HUD and feedback.
+- **Timeline**: 4-6 weeks.
+
+#### Phase 2: Core Game
+- **Scope**: 
+  - 3-5 tracks.
+  - Add pit stops, tire wear, DRS, aero, 10-car racing, overtaking.
+  - Race mode with AI and reaction starts.
+- **Deliverables**: Multi-lap races, polished UI, progression.
+- **Timeline**: 10-14 weeks.
+
+#### Phase 3: Ghost Mode & Polish
+- **Scope**: 
+  - Full season tracks.
+  - Ghost racing, fuel management, damage system.
+  - Achievements and replay.
+- **Deliverables**: Competitive mode, final polish.
+- **Timeline**: 8-12 weeks.
+
+---
+
+### 6. Assumptions & Constraints
+- **Assumptions**:
+  - Players have basic web access and keyboards.
+  - AI can be simplified (no complex pathfinding initially).
+- **Constraints**:
+  - No multiplayer in initial phases.
+  - 2D limits elevation visuals (use shading/scaling as workaround).
+
+---
+
+### 7. Dependencies
+- **Tools**: Phaser.js, Git, optional: GIMP/Photoshop for sprites.
+- **Skills**: JavaScript, 2D game dev, basic AI logic.
+- **External Data**: F1 lap times for ghost mode.
+
+---
+
+### 8. Risks & Mitigations
+- **Risk**: 10-car races lag on low-end devices.
+  - **Mitigation**: Optimize sprites and limit AI calculations; test early.
+- **Risk**: New mechanics (fuel, damage) confuse players.
+  - **Mitigation**: Introduce via tutorials; optional toggles in settings.
+- **Risk**: Reaction timer feels unfair.
+  - **Mitigation**: Adjustable difficulty; clear visual/audio cues.
+
+---
+
+### 9. Success Metrics
+- **Engagement**: Players complete >50% of tutorials; race 5+ times.
+- **Learning**: Improved reaction times and race positions over sessions.
+- **Performance**: 60 FPS with 10 cars on mid-range devices.
+- **Fun**: Positive feedback on overtaking and starts.
+
+---
+
+### 10. Next Steps
+1. **Prototype**: Build a demo (Monaco, reaction timer, 3-car race) in Phaser.js.
+2. **Assets**: Design car sprites (player + AI), track, light sequence.
+3. **Test**: Playtest with 5 users for usability, fun, and performance.
+4. **Iterate**: Refine camera, AI, and mechanics based on feedback.
+
+---
+
+### What’s New?
+- **Race Start Reaction Timer**: Adds tension and skill to every race.
+- **10-Car Racing**: Brings F1’s competitive chaos to life.
+- **Overtaking, Fuel, Damage**: Deepens strategy and realism.
+- **Extras**: Achievements and replays boost replayability.

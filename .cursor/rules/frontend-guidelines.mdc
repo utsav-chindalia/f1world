@@ -1,0 +1,108 @@
+---
+description: Frontend Guidelines & Design System
+globs: 
+alwaysApply: false
+---
+## F1 Edu-Racer – Frontend Guidelines & Design System
+
+---
+
+### 1. **Design Principles**
+
+- **Clarity over clutter** – HUD and menus should never overwhelm gameplay.
+- **Game-first UI** – Minimal and contextual UI with visual priority on the track and car.
+- **Educational cues** – Use tooltips, overlays, and visual feedback tied directly to in-game concepts (like tire temp, fuel, race line).
+- **Responsiveness** – Designed for desktops (keyboard-first), but future-friendly for touch adaptations.
+
+---
+
+### 2. **Fonts**
+
+| Purpose            | Font                  | Source                         |
+|--------------------|-----------------------|--------------------------------|
+| UI & HUD Labels    | **Orbitron**          | [Google Fonts](mdc:https:/fonts.google.com/specimen/Orbitron) |
+| Secondary Text     | **Roboto** (fallback) | [Google Fonts](mdc:https:/fonts.google.com/specimen/Roboto)   |
+| Lap Time / Digital | **Share Tech Mono**   | [Google Fonts](mdc:https:/fonts.google.com/specimen/Share+Tech+Mono) |
+
+**Usage Suggestions:**
+- Use `Orbitron` for menus, buttons, and HUD elements.
+- Use `Share Tech Mono` for digital elements (lap time, reaction timer, fuel).
+- Use `Roboto` for tooltips, glossary, and tutorial text.
+
+---
+
+### 3. **Color Palette**
+
+| Use Case         | Color        | Hex       | Description |
+|------------------|--------------|-----------|-------------|
+| Primary Accent   | Red          | `#FF2D00` | Used for start lights, alerts, penalties |
+| Secondary Accent | Cyan Blue    | `#00E0FF` | Used for DRS zone, boost, overtake indicators |
+| Background Dark  | Charcoal     | `#1A1A1A` | Game background, HUD base |
+| Card / Panel     | Asphalt Grey | `#2F2F2F` | Menus, tooltip backdrops |
+| Text Light       | White        | `#FFFFFF` | For titles and main text |
+| Text Subtle      | Light Grey   | `#B0B0B0` | Secondary text, labels |
+| Success/Positive | Green Lime   | `#00FF99` | For perfect starts, achievements |
+| Warning          | Yellow       | `#FFCC00` | For tire warnings, pit alerts |
+| Error            | Orange/Red   | `#FF5733` | For crashes, fuel low, damage indicators |
+
+---
+
+### 4. **Spacing & Layout Rules**
+
+| Rule                 | Value        | Notes |
+|----------------------|--------------|-------|
+| Base Unit            | `8px`        | All spacing based on this multiplier (8, 16, 24...) |
+| Padding (Buttons)    | `12px 20px`  | Comfortable clickable areas |
+| Menu Gutter          | `24px`       | Space between menu items or HUD blocks |
+| HUD Margin from Edge | `16px`       | Keeps elements from crowding screen edges |
+| Tooltip Max Width    | `300px`      | Prevents long text overflow |
+
+**Grid System:**
+- Use a **flexbox-based layout** for menus and HUDs.
+- In-game overlays and HUD should anchor to screen edges (top-right, bottom-left etc.) with defined pixel margins.
+
+---
+
+### 5. **Preferred UI Library**
+
+- **Custom UI using Phaser Scenes & RexUI Plugin**  
+  - [RexUI Docs](mdc:https:/rexrainbow.github.io/phaser3-rex-notes/docs/site/ui-overview)
+  - Allows creation of buttons, sliders, text boxes directly in Phaser.
+  - Integrates tightly with game state (e.g., updating HUD from gameplay).
+
+**Why not React or HTML overlay?**
+- Phaser UI keeps the game fully in canvas.
+- No cross-layer communication issues.
+- Easier for animation, placement, and HUD control within the game scene.
+
+---
+
+### 6. **Icon Set**
+
+| Category         | Icon Set        | Source |
+|------------------|------------------|--------|
+| UI / Menu Icons  | **Phosphor Icons** (SVG) | [https://phosphoricons.com/](mdc:https:/phosphoricons.com) |
+| In-Game Indicators | **Custom Sprites** | Designed using GIMP/Figma |
+| Status Symbols   | FontAwesome (fallback for web menus) | [https://fontawesome.com](mdc:https:/fontawesome.com) |
+
+**Phosphor** is modern, customizable, and works great with SVGs in canvas or converted to bitmap for performance.
+
+---
+
+### 7. **Example HUD Elements (Guided)**
+
+- **Top Left:** Current Lap / Total Laps  
+- **Top Right:** Fuel, Tire Temp, DRS Button  
+- **Bottom Center:** Speed / Gear (if added later)  
+- **Center-Top:** Reaction Timer (only at race start)  
+- **Post-Race:** Modal with sector breakdown, ghost comparison
+
+---
+
+Let me know if you'd like me to:
+
+- Generate a **starter Figma file** based on this system  
+- Convert this into a Markdown/Notion format for your dev team  
+- Start coding the **HUD component layout** using Phaser’s UI plugin  
+
+What’s next?
