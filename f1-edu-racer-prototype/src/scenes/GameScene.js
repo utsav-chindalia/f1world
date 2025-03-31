@@ -15,6 +15,7 @@ export default class GameScene extends Phaser.Scene {
     this.jumpStarts = parseInt(localStorage.getItem('jumpStarts') || '0');
     this.isFirstVisit = !localStorage.getItem('hasVisitedBefore');
     this.showingOverlay = this.isFirstVisit; // Only show overlay on first visit
+    this.isCountingDown = false; // Add flag for countdown state
     
     // Track dimensions
     this.trackWidth = 800;
@@ -55,6 +56,7 @@ export default class GameScene extends Phaser.Scene {
     this.carSpeed = 0;
     this.maxSpeed = 400;
     this.acceleration = 10;
+    this.isCountingDown = false; // Reset the countdown flag
 
     // Create modern F1 UI frame
     this.createF1UIFrame();
@@ -195,7 +197,7 @@ export default class GameScene extends Phaser.Scene {
 
     // Draw finish line (checkered pattern) - F1 style
     const finishLine = this.add.graphics();
-    finishLine.setDepth(2); // Above road texture but below grid
+    // finishLine.setDepth(2); // Above road texture but below grid
     
     const checkerSize = 25; // Made slightly larger for better visibility
     const checkerRows = Math.ceil((this.trackWidth - (stripeWidth * 2)) / checkerSize);
@@ -289,16 +291,18 @@ export default class GameScene extends Phaser.Scene {
     this.overlay.fillRect(width * 0.1, height * 0.2, width * 0.8, 4);
     
     this.overlay.setDepth(100);
-    this.overlay.setInteractive();
+    
+    // Make overlay interactive with a proper hit area
+    this.overlay.setInteractive(new Phaser.Geom.Rectangle(0, 0, width, height), Phaser.Geom.Rectangle.Contains);
 
     // Create information text with F1 styling
-    const titleText = this.add.text(width / 2, height * 0.15, 'F1 REACTION TRAINING', {
-      fontSize: '32px',
-      fontFamily: 'Titillium Web',
-      fontWeight: 'bold',
-      color: '#ffffff',
-      align: 'center'
-    }).setOrigin(0.5).setDepth(101);
+    // const titleText = this.add.text(width / 2, height * 0.15, 'F1 REACTION TRAINING', {
+    //   fontSize: '32px',
+    //   fontFamily: 'Titillium Web',
+    //   fontWeight: 'bold',
+    //   color: '#ffffff',
+    //   align: 'center'
+    // }).setOrigin(0.5).setDepth(101);
     
     const infoText = [
       '🏎️ PERFECT YOUR RACE START 🏎️',
@@ -316,7 +320,9 @@ export default class GameScene extends Phaser.Scene {
       'CONTROLS:',
       '• UP ARROW: Launch car / Accelerate',
       '',
-      'CLICK ANYWHERE OR PRESS SPACE TO CONTINUE'
+      'CLICK ANYWHERE OR PRESS SPACE TO CONTINUE',
+      '',
+      'Auto restart after 3 seconds'
     ].join('\n');
 
     const info = this.add.text(width / 2, height * 0.45, infoText, {
@@ -327,27 +333,11 @@ export default class GameScene extends Phaser.Scene {
       lineSpacing: 10
     }).setOrigin(0.5).setDepth(101);
 
-    // Add F1 style button
-    const buttonBg = this.add.graphics();
-    buttonBg.fillStyle(this.f1Red, 1);
-    buttonBg.fillRoundedRect(width/2 - 120, height * 0.75 - 25, 240, 50, 8);
-    buttonBg.setDepth(101);
-    
-    const continueBtn = this.add.text(width/2, height * 0.75, 'START SESSION', {
-      fontSize: '22px',
-      fontFamily: 'Titillium Web',
-      fontWeight: 'bold',
-      color: '#ffffff',
-      align: 'center'
-    }).setOrigin(0.5).setDepth(102).setInteractive();
-
     // Add click and space key to dismiss overlay
     const dismissOverlay = () => {
       this.overlay.destroy();
       info.destroy();
-      titleText.destroy();
-      buttonBg.destroy();
-      continueBtn.destroy();
+      // titleText.destroy();
       this.showingOverlay = false;
       if (this.isFirstVisit) {
         this.startLightSequence(); // Only start the sequence after first visit overlay is dismissed
@@ -355,7 +345,6 @@ export default class GameScene extends Phaser.Scene {
     };
 
     this.overlay.on('pointerdown', dismissOverlay);
-    continueBtn.on('pointerdown', dismissOverlay);
     this.input.keyboard.once('keydown-SPACE', dismissOverlay);
   }
 
@@ -496,9 +485,34 @@ export default class GameScene extends Phaser.Scene {
       this.car.body.setVelocityY(-this.carSpeed);
 
       // Check if car has moved significantly up the screen
-      if (this.car.y < this.scale.height * 0.3) {
-        // Reset the game scene instead of going to ResultScene
-        this.scene.restart();
+      if (this.car.y < this.scale.height * 0.3 && !this.isCountingDown) {
+        this.isCountingDown = true; // Set the countdown flag
+        this.car.body.setVelocityY(0); // Stop the car
+        
+        // Add a 3 second timer before restarting
+        const countdownText = this.add.text(this.scale.width / 2, this.scale.height / 2, '3', {
+          fontSize: '64px',
+          fontFamily: 'Titillium Web',
+          fontWeight: 'bold',
+          color: '#ffffff',
+          stroke: '#000000',
+          strokeThickness: 4
+        }).setOrigin(0.5).setDepth(100);
+
+        let countdown = 3;
+        const timer = this.time.addEvent({
+          delay: 1000,
+          callback: () => {
+            countdown--;
+            if (countdown > 0) {
+              countdownText.setText(countdown.toString());
+            } else {
+              countdownText.destroy();
+              this.scene.restart();
+            }
+          },
+          repeat: 2
+        });
       }
     }
   }
