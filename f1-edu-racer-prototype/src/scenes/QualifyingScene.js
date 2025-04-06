@@ -89,7 +89,7 @@ export default class QualifyingScene extends Phaser.Scene {
     // Race properties
     this.raceData = {
       currentLap: 0,
-      totalLaps: 3,
+      totalLaps: 100,
       lapTimes: [],
       bestLapTime: null,
       raceStartTime: 0,
