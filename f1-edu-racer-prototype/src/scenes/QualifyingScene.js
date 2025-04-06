@@ -96,7 +96,8 @@ export default class QualifyingScene extends Phaser.Scene {
       lastCheckpointTime: 0,
       checkpointsPassed: new Set(),
       hasPassedStartLine: false,  // Track if start line was crossed
-      currentLapStartTime: 0      // Track individual lap times
+      currentLapStartTime: 0,     // Track individual lap times
+      lapInvalidated: false       // Track if current lap is invalidated
     };
 
     // Track segments for waypoints and AI
@@ -108,7 +109,8 @@ export default class QualifyingScene extends Phaser.Scene {
       speedometer: null,
       timer: null,
       lapTime: null,
-      bestLap: null
+      bestLap: null,
+      notification: null  // Add notification text element
     };
 
     // F1 style colors
@@ -384,17 +386,27 @@ export default class QualifyingScene extends Phaser.Scene {
       strokeThickness: 4
     });
     
+    // Add notification text
+    this.ui.notification = this.add.text(20, 220, '', {
+      fontSize: '28px',
+      fontFamily: 'Titillium Web',
+      color: '#ffffff',
+      stroke: '#000000',
+      strokeThickness: 4
+    });
+    
     // Add all UI elements to container
     this.ui.container.add([
       this.ui.lapCounter,
       this.ui.speedometer,
       this.ui.timer,
       this.ui.lapTime,
-      this.ui.bestLap
+      this.ui.bestLap,
+      this.ui.notification
     ]);
 
     // Make UI elements more visible with background
-    const uiBackground = this.add.rectangle(10, 10, 300, 220, 0x000000, 0.5);
+    const uiBackground = this.add.rectangle(10, 10, 300, 260, 0x000000, 0.5);
     uiBackground.setOrigin(0, 0);
     uiBackground.setScrollFactor(0);
     this.ui.container.add(uiBackground);
@@ -652,6 +664,12 @@ export default class QualifyingScene extends Phaser.Scene {
       this.raceData.hasPassedStartLine = true;
       this.raceData.currentLapStartTime = now;
       
+      // Reset lap invalidation status
+      if (this.raceData.lapInvalidated) {
+        this.raceData.lapInvalidated = false;
+        this.ui.lapTime.setColor('#ffffff'); // Reset color back to white
+      }
+      
       // If this is the first lap, start the race timer
       if (this.raceData.currentLap === 0) {
         this.raceData.raceStartTime = now;
@@ -667,20 +685,25 @@ export default class QualifyingScene extends Phaser.Scene {
         return;
       }
       
-      this.raceData.lapTimes.push(lapTime);
-      
-      // Update best lap time
-      if (!this.raceData.bestLapTime || lapTime < this.raceData.bestLapTime) {
-        this.raceData.bestLapTime = lapTime;
-        console.log(`New best lap! ${this.formatTime(lapTime)}`);
+      // Only count the lap if it wasn't invalidated
+      if (!this.raceData.lapInvalidated) {
+        this.raceData.lapTimes.push(lapTime);
+        
+        // Update best lap time
+        if (!this.raceData.bestLapTime || lapTime < this.raceData.bestLapTime) {
+          this.raceData.bestLapTime = lapTime;
+          console.log(`New best lap! ${this.formatTime(lapTime)}`);
+        }
+        
+        console.log(`Lap ${this.raceData.currentLap} completed! Time: ${this.formatTime(lapTime)}`);
       }
       
       // Reset for next lap
       this.raceData.hasPassedStartLine = false;
       this.raceData.currentLap++;
       this.raceData.checkpointsPassed.clear();
-      
-      console.log(`Lap ${this.raceData.currentLap - 1} completed! Time: ${this.formatTime(lapTime)}`);
+      this.raceData.lapInvalidated = false;
+      this.ui.lapTime.setColor('#ffffff'); // Reset color back to white
       
       // Check if race is complete
       if (this.raceData.currentLap > this.raceData.totalLaps) {
@@ -702,15 +725,26 @@ export default class QualifyingScene extends Phaser.Scene {
   }
 
   handleBoundaryCollision(car, wall) {
-    // Reset the current lap time
-    if (this.raceData.currentLap > 0) {
-      this.raceData.currentLapStartTime = this.time.now;
-      this.ui.lapTime.setText('LAP TIME: INVALID - Cut Track');
-      this.ui.lapTime.setColor('#ff0000'); // Set text to red to indicate invalid lap
+    // Only invalidate the lap if we haven't already
+    if (this.raceData.currentLap > 0 && !this.raceData.lapInvalidated) {
+      this.raceData.lapInvalidated = true;
+      
+      // Show notification
+      this.ui.notification.setText('LAP TIME DELETED - Cut Track');
+      this.ui.notification.setColor('#ff0000');
+      
+      // Clear the current lap time display
+      this.ui.lapTime.setText('LAP TIME: --:--.---');
+      this.ui.lapTime.setColor('#ff0000');
+      
+      // Optional: Add visual feedback
+      this.cameras.main.shake(50, 0.003);
+      
+      // Set a timer to clear the notification after 3 seconds
+      this.time.delayedCall(3000, () => {
+        this.ui.notification.setText('');
+      });
     }
-    
-    // Optional: Add visual feedback
-    this.cameras.main.shake(50, 0.003);
   }
 
   shutdown() {
