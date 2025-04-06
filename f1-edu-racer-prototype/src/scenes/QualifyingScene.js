@@ -9,6 +9,13 @@ export default class QualifyingScene extends Phaser.Scene {
       width: 1920 * 2,  // Wide track for proper F1 circuit
       height: 1080 * 2,
       checkpoints: [],
+      startFinishLine: {
+        x: 1772,
+        y: 1335,
+        rotation: 5.5,
+        width: 200,
+        height: 10
+      },
       surfaces: {
         track: { grip: 1.0, drag: 0.98 },
         grass: { grip: 0.3, drag: 0.95 },
@@ -22,8 +29,6 @@ export default class QualifyingScene extends Phaser.Scene {
       maxSpeed: 600,
       acceleration: 15,
       brakeForce: 25,
-      maxReverseSpeed: 600,  // Maximum reverse speed
-      reverseAcceleration: 15, // Acceleration when in reverse
       
       // Handling properties
       turnRate: 0.100,
@@ -89,7 +94,9 @@ export default class QualifyingScene extends Phaser.Scene {
       bestLapTime: null,
       raceStartTime: 0,
       lastCheckpointTime: 0,
-      checkpointsPassed: new Set()
+      checkpointsPassed: new Set(),
+      hasPassedStartLine: false,  // Track if start line was crossed
+      currentLapStartTime: 0      // Track individual lap times
     };
 
     // Track segments for waypoints and AI
@@ -99,7 +106,9 @@ export default class QualifyingScene extends Phaser.Scene {
     this.ui = {
       lapCounter: null,
       speedometer: null,
-      timer: null
+      timer: null,
+      lapTime: null,
+      bestLap: null
     };
 
     // F1 style colors
@@ -130,6 +139,9 @@ export default class QualifyingScene extends Phaser.Scene {
       frameWidth: 32, 
       frameHeight: 32 
     });
+    
+    // Load track boundaries JSON
+    this.load.json('track_boundaries', '/assets/jsons/track_boundaries.json');
   }
 
   create() {
@@ -138,6 +150,9 @@ export default class QualifyingScene extends Phaser.Scene {
     
     // Initialize car
     this.createCar();
+    
+    // Create start and finish lines
+    this.createStartFinishLines();
     
     // Setup camera
     this.setupCamera();
@@ -176,8 +191,67 @@ export default class QualifyingScene extends Phaser.Scene {
     // Setup track boundaries
     this.physics.world.setBounds(0, 0, this.trackConfig.width, this.trackConfig.height);
     
+    // Create track boundaries
+    this.createTrackBoundaries();
+    
     // Create checkpoints
     this.createCheckpoints();
+  }
+
+  createTrackBoundaries() {
+    // Create a group for track boundaries
+    this.boundaries = this.add.group();
+    
+    // Get track boundary data from JSON
+    const boundaryData = this.cache.json.get('track_boundaries');
+    const boundaryPoints = [boundaryData.outside, boundaryData.inside];
+
+    // Create boundary walls
+    boundaryPoints.forEach(points => {
+      for (let i = 0; i < points.length - 1; i++) {
+        const start = points[i];
+        const end = points[i + 1];
+        
+        // Calculate the length and angle of the boundary segment
+        const length = Phaser.Math.Distance.Between(start.x, start.y, end.x, end.y);
+        const angle = Phaser.Math.Angle.Between(start.x, start.y, end.x, end.y);
+        
+        // Create a thinner physics body for the wall
+        const wall = this.add.rectangle(
+          (start.x + end.x) / 2,
+          (start.y + end.y) / 2,
+          length,
+          10,  // Reduced thickness for more precise collisions
+          0xFF0000
+        );
+        
+        // Set the wall's rotation
+        wall.setRotation(angle);
+        
+        // Add physics and make it static
+        this.physics.add.existing(wall, true);
+        
+        // Make the wall a sensor (allows pass-through)
+        wall.body.isSensor = true;
+        
+        // Enable debug visualization of physics body
+        wall.body.debugShowBody = true;
+        wall.body.debugBodyColor = 0xFF0000;
+        
+        // Add to boundaries group
+        this.boundaries.add(wall);
+        
+        // Create a visual line (thinner than physics body)
+        const line = this.add.line(
+          0, 0,
+          start.x, start.y,
+          end.x, end.y,
+          0xFF0000, 0.3
+        );
+        line.setLineWidth(1);
+        line.setOrigin(0, 0);
+      }
+    });
   }
 
   createCheckpoints() {
@@ -196,16 +270,38 @@ export default class QualifyingScene extends Phaser.Scene {
     });
   }
 
+  createStartFinishLines() {
+    // Create start/finish line
+    this.startFinishLine = this.add.rectangle(
+      this.trackConfig.startFinishLine.x,
+      this.trackConfig.startFinishLine.y,
+      this.trackConfig.startFinishLine.width,
+      this.trackConfig.startFinishLine.height,
+      0xFFFFFF // White color
+    );
+    this.startFinishLine.setAngle(this.trackConfig.startFinishLine.rotation * (180/Math.PI));
+    this.startFinishLine.setDepth(1);
+  }
+
   createCar() {
-    // Create car sprite
+    // Create car sprite at start line position
     this.car = this.physics.add.sprite(
-      this.trackConfig.width / 2,  // Start in middle of track width
-      this.trackConfig.height / 2,  // Start in middle of track height
+      this.trackConfig.startFinishLine.x,
+      this.trackConfig.startFinishLine.y,
       'car'
     );
     
+    // Set car rotation to match start line
+    this.car.setAngle(this.trackConfig.startFinishLine.rotation * (180/Math.PI));
+    
     // Set car scale
     this.car.setScale(this.carConfig.scale);
+    
+    // Set precise physics body size (80% of sprite size for more accurate collisions)
+    const carWidth = this.car.width * this.carConfig.scale * 0.8;
+    const carHeight = this.car.height * this.carConfig.scale * 0.8;
+    this.car.body.setSize(carWidth, carHeight);
+    this.car.body.setOffset((this.car.width - carWidth) / 2, (this.car.height - carHeight) / 2);
     
     // Set car properties
     this.car.setDrag(this.carConfig.dragBase);
@@ -244,7 +340,7 @@ export default class QualifyingScene extends Phaser.Scene {
     this.ui.container.setScrollFactor(0);
     
     // Add lap counter
-    this.ui.lapCounter = this.add.text(20, 20, 'LAP: 1/3', {
+    this.ui.lapCounter = this.add.text(20, 20, 'LAP: 0/3', {
       fontSize: '28px',
       fontFamily: 'Titillium Web',
       color: '#ffffff',
@@ -262,10 +358,28 @@ export default class QualifyingScene extends Phaser.Scene {
     });
     
     // Add timer
-    this.ui.timer = this.add.text(20, 100, 'TIME: 00:00.000', {
+    this.ui.timer = this.add.text(20, 100, 'TOTAL TIME: 00:00.000', {
       fontSize: '28px',
       fontFamily: 'Titillium Web',
       color: '#ffffff',
+      stroke: '#000000',
+      strokeThickness: 4
+    });
+
+    // Add current lap time
+    this.ui.lapTime = this.add.text(20, 140, 'LAP TIME: 00:00.000', {
+      fontSize: '28px',
+      fontFamily: 'Titillium Web',
+      color: '#ffffff',
+      stroke: '#000000',
+      strokeThickness: 4
+    });
+
+    // Add best lap time
+    this.ui.bestLap = this.add.text(20, 180, 'BEST LAP: --:--.---', {
+      fontSize: '28px',
+      fontFamily: 'Titillium Web',
+      color: '#00ff00',
       stroke: '#000000',
       strokeThickness: 4
     });
@@ -274,11 +388,13 @@ export default class QualifyingScene extends Phaser.Scene {
     this.ui.container.add([
       this.ui.lapCounter,
       this.ui.speedometer,
-      this.ui.timer
+      this.ui.timer,
+      this.ui.lapTime,
+      this.ui.bestLap
     ]);
 
     // Make UI elements more visible with background
-    const uiBackground = this.add.rectangle(10, 10, 300, 130, 0x000000, 0.5);
+    const uiBackground = this.add.rectangle(10, 10, 300, 220, 0x000000, 0.5);
     uiBackground.setOrigin(0, 0);
     uiBackground.setScrollFactor(0);
     this.ui.container.add(uiBackground);
@@ -293,6 +409,15 @@ export default class QualifyingScene extends Phaser.Scene {
     this.trackConfig.checkpoints.forEach(checkpoint => {
       this.physics.add.overlap(this.car, checkpoint, this.handleCheckpoint, null, this);
     });
+
+    // Add physics body to start/finish line
+    this.physics.add.existing(this.startFinishLine, true);
+    
+    // Add start/finish line overlap detection
+    this.physics.add.overlap(this.car, this.startFinishLine, this.onStartFinishLineCross, null, this);
+
+    // Add overlap detection between car and track boundaries
+    this.physics.add.overlap(this.car, this.boundaries, this.handleBoundaryCollision, null, this);
   }
 
   handleCheckpoint(car, checkpoint) {
@@ -334,13 +459,17 @@ export default class QualifyingScene extends Phaser.Scene {
     
     // Update timer
     const currentTime = this.time.now - this.raceData.raceStartTime;
-    this.ui.timer.setText(`TIME: ${this.formatTime(currentTime)}`);
+    this.ui.timer.setText(`TOTAL TIME: ${this.formatTime(currentTime)}`);
     
-    // Add tire info (optional)
-    if (this.ui.tireInfo) {
-      const tempColor = this.getTireTempColor();
-      this.ui.tireInfo.setText(`TIRES: ${Math.round(this.carConfig.tireGrip * 100)}% (${Math.round(this.carConfig.tireTemp)}°C)`)
-        .setColor(tempColor);
+    // Update current lap time if race has started
+    if (this.raceData.currentLap > 0) {
+      const currentLapTime = this.time.now - this.raceData.currentLapStartTime;
+      this.ui.lapTime.setText(`LAP TIME: ${this.formatTime(currentLapTime)}`);
+      
+      // Show best lap time if exists
+      if (this.raceData.bestLapTime) {
+        this.ui.bestLap.setText(`BEST LAP: ${this.formatTime(this.raceData.bestLapTime)}`);
+      }
     }
   }
 
@@ -367,6 +496,11 @@ export default class QualifyingScene extends Phaser.Scene {
     
     // Update UI
     this.updateUI();
+
+    // Log car position when moving
+    if (this.car && (this.cursors.up.isDown || this.cursors.down.isDown || this.cursors.left.isDown || this.cursors.right.isDown)) {
+      console.log(`Car Position - X: ${Math.round(this.car.x)}, Y: ${Math.round(this.car.y)}, Rotation: ${Math.round(this.car.angle)}`);
+    }
   }
 
   handleCarMovement(delta) {
@@ -425,29 +559,11 @@ export default class QualifyingScene extends Phaser.Scene {
       this.car.body.velocity.y = newVelocityY;
       
     } else if (this.cursors.down.isDown) {
+      // Apply brakes
+      const brakeForce = this.carConfig.brakeForce * effectiveGrip;
       const angle = this.car.rotation - (Math.PI / 2);
-      
-      if (currentSpeed > 0) {
-        // If moving forward, apply brakes
-        const brakeForce = this.carConfig.brakeForce * effectiveGrip;
-        const newSpeed = Math.max(0, currentSpeed - brakeForce);
-        this.car.body.velocity.x = Math.cos(angle) * newSpeed;
-        this.car.body.velocity.y = Math.sin(angle) * newSpeed;
-      } else {
-        // Apply reverse acceleration
-        const reverseAcceleration = this.carConfig.reverseAcceleration * effectiveGrip;
-        
-        // Calculate new reverse speed
-        const currentReverseSpeed = Math.abs(this.car.body.velocity.length());
-        const newReverseSpeed = Math.min(
-          this.carConfig.maxReverseSpeed,
-          currentReverseSpeed + reverseAcceleration
-        );
-        
-        // Apply reverse velocity directly
-        this.car.body.velocity.x = -Math.cos(angle) * newReverseSpeed;
-        this.car.body.velocity.y = -Math.sin(angle) * newReverseSpeed;
-      }
+      this.car.body.velocity.x = Math.cos(angle) * Math.max(0, currentSpeed - brakeForce);
+      this.car.body.velocity.y = Math.sin(angle) * Math.max(0, currentSpeed - brakeForce);
     } else {
       // Very gentle engine braking when no input
       this.car.body.velocity.scale(this.carConfig.engineBraking);
@@ -526,6 +642,75 @@ export default class QualifyingScene extends Phaser.Scene {
     // This would use the collision map to determine what surface the car is on
     // For now, we'll just use track as default
     this.car.data.surface = 'track';
+  }
+
+  onStartFinishLineCross() {
+    const now = this.time.now;
+
+    if (!this.raceData.hasPassedStartLine) {
+      // Starting a new lap
+      this.raceData.hasPassedStartLine = true;
+      this.raceData.currentLapStartTime = now;
+      
+      // If this is the first lap, start the race timer
+      if (this.raceData.currentLap === 0) {
+        this.raceData.raceStartTime = now;
+        this.raceData.currentLap = 1;
+        console.log('Race started!');
+      }
+    } else {
+      // Completing a lap
+      const lapTime = now - this.raceData.currentLapStartTime;
+      
+      // Prevent accidental double-counting by checking minimum lap time (e.g., 5 seconds)
+      if (lapTime < 5000) {
+        return;
+      }
+      
+      this.raceData.lapTimes.push(lapTime);
+      
+      // Update best lap time
+      if (!this.raceData.bestLapTime || lapTime < this.raceData.bestLapTime) {
+        this.raceData.bestLapTime = lapTime;
+        console.log(`New best lap! ${this.formatTime(lapTime)}`);
+      }
+      
+      // Reset for next lap
+      this.raceData.hasPassedStartLine = false;
+      this.raceData.currentLap++;
+      this.raceData.checkpointsPassed.clear();
+      
+      console.log(`Lap ${this.raceData.currentLap - 1} completed! Time: ${this.formatTime(lapTime)}`);
+      
+      // Check if race is complete
+      if (this.raceData.currentLap > this.raceData.totalLaps) {
+        this.onRaceComplete();
+      }
+    }
+  }
+
+  onRaceComplete() {
+    const totalTime = this.time.now - this.raceData.raceStartTime;
+    const bestLap = this.raceData.bestLapTime;
+    
+    console.log('Race Complete!');
+    console.log(`Total Time: ${this.formatTime(totalTime)}`);
+    console.log(`Best Lap: ${this.formatTime(bestLap)}`);
+    
+    // You could add more race completion logic here
+    // For example, showing a results screen or returning to menu
+  }
+
+  handleBoundaryCollision(car, wall) {
+    // Reset the current lap time
+    if (this.raceData.currentLap > 0) {
+      this.raceData.currentLapStartTime = this.time.now;
+      this.ui.lapTime.setText('LAP TIME: INVALID - Cut Track');
+      this.ui.lapTime.setColor('#ff0000'); // Set text to red to indicate invalid lap
+    }
+    
+    // Optional: Add visual feedback
+    this.cameras.main.shake(50, 0.003);
   }
 
   shutdown() {
