@@ -59,8 +59,6 @@ export default class MainMenuScene extends Phaser.Scene {
     const startButtonBg = this.add.graphics();
     startButtonBg.fillStyle(0xE10600, 1);
     startButtonBg.fillRoundedRect(-120, -25, 240, 50, 5);
-
-        this.scene.start('GameScene');
     
     const startButton = this.add.text(0, 0, 'START RACE', buttonStyle)
       .setOrigin(0.5)
@@ -81,6 +79,31 @@ export default class MainMenuScene extends Phaser.Scene {
       
     buttonContainer.add([startButtonBg, startButton]);
 
+    // Qualifying button with F1 styling
+    const qualifyingButtonBg = this.add.graphics();
+    qualifyingButtonBg.fillStyle(0x00D2BE, 1);
+    qualifyingButtonBg.fillRoundedRect(-120, 35, 240, 50, 5);
+    
+    const qualifyingButton = this.add.text(0, 60, 'QUALIFYING', buttonStyle)
+      .setOrigin(0.5)
+      .setInteractive({ useHandCursor: true })
+      .on('pointerover', () => {
+        qualifyingButtonBg.clear();
+        qualifyingButtonBg.fillStyle(0x00E6D2, 1);
+        qualifyingButtonBg.fillRoundedRect(-120, 35, 240, 50, 5);
+      })
+      .on('pointerout', () => {
+        qualifyingButtonBg.clear();
+        qualifyingButtonBg.fillStyle(0x00D2BE, 1);
+        qualifyingButtonBg.fillRoundedRect(-120, 35, 240, 50, 5);
+      })
+      .on('pointerdown', () => {
+        this.scene.stop('MainMenuScene');
+        this.scene.start('QualifyingScene');
+      });
+      
+    buttonContainer.add([qualifyingButtonBg, qualifyingButton]);
+
     // Disabled buttons with F1 styling
     const createDisabledButton = (y, text) => {
       const buttonBg = this.add.graphics();
@@ -99,9 +122,9 @@ export default class MainMenuScene extends Phaser.Scene {
       buttonContainer.add(lockIcon);
     };
 
-    createDisabledButton(60, 'TUTORIALS');
-    createDisabledButton(120, 'GHOST MODE');
-    createDisabledButton(180, 'SETTINGS');
+    createDisabledButton(120, 'TUTORIALS');
+    createDisabledButton(180, 'GHOST MODE');
+    createDisabledButton(240, 'SETTINGS');
     
     // Add F1 style footer text
     this.add.text(width / 2, height - 40, 'F1 EDU-RACER © 2023', {
