@@ -13,8 +13,8 @@ export default class QualifyingScene extends Phaser.Scene {
         x: 1772,
         y: 1335,
         rotation: 5.5,
-        width: 200,
-        height: 10
+        width: 350,
+        height: 350
       },
       surfaces: {
         track: { grip: 1.0, drag: 0.98 },
@@ -289,10 +289,16 @@ export default class QualifyingScene extends Phaser.Scene {
       this.trackConfig.startFinishLine.y,
       this.trackConfig.startFinishLine.width,
       this.trackConfig.startFinishLine.height,
-      0xFFFFFF // White color
+      0xD1D0C4,
+      0
     );
     this.startFinishLine.setAngle(this.trackConfig.startFinishLine.rotation * (180/Math.PI));
-    this.startFinishLine.setDepth(1);
+    
+    // Add physics body to start/finish line and ensure it matches the visual dimensions
+    this.physics.add.existing(this.startFinishLine, true);
+    this.startFinishLine.body.setSize(this.trackConfig.startFinishLine.width, this.trackConfig.startFinishLine.height);
+    // Make it a sensor to prevent physical collision while still detecting overlap
+    this.startFinishLine.body.isSensor = true;
   }
 
   createCar() {
@@ -432,14 +438,11 @@ export default class QualifyingScene extends Phaser.Scene {
       this.physics.add.overlap(this.car, checkpoint, this.handleCheckpoint, null, this);
     });
 
-    // Add physics body to start/finish line
-    this.physics.add.existing(this.startFinishLine, true);
+    // Add overlap detection between car and track boundaries
+    this.physics.add.overlap(this.car, this.boundaries, this.handleBoundaryCollision, null, this);
     
     // Add start/finish line overlap detection
     this.physics.add.overlap(this.car, this.startFinishLine, this.onStartFinishLineCross, null, this);
-
-    // Add overlap detection between car and track boundaries
-    this.physics.add.overlap(this.car, this.boundaries, this.handleBoundaryCollision, null, this);
   }
 
   handleCheckpoint(car, checkpoint) {
