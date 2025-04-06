@@ -110,7 +110,8 @@ export default class QualifyingScene extends Phaser.Scene {
       timer: null,
       lapTime: null,
       bestLap: null,
-      notification: null  // Add notification text element
+      notification: null,  // Add notification text element
+      debugCoords: null  // Add debug coordinates text element
     };
 
     // F1 style colors
@@ -124,7 +125,8 @@ export default class QualifyingScene extends Phaser.Scene {
     // Debug flags
     this.debug = {
       showCarPosition: false, // Toggle for car position logging
-      showBoundaries: false  // Toggle for boundary wall visibility
+      showBoundaries: false,  // Toggle for boundary wall visibility
+      showClickCoordinates: false  // Toggle for click coordinate debugging
     };
   }
 
@@ -176,6 +178,9 @@ export default class QualifyingScene extends Phaser.Scene {
     
     // Start race timer
     this.raceData.raceStartTime = this.time.now;
+    
+    // Setup click debug handler
+    this.setupDebugClickHandler();
   }
 
   createTrack() {
@@ -229,7 +234,7 @@ export default class QualifyingScene extends Phaser.Scene {
           (start.x + end.x) / 2,
           (start.y + end.y) / 2,
           length,
-          70,  // Reduced thickness for more precise collisions
+          20,  // Reduced thickness for more precise collisions
           0xFF0000
         );
         
@@ -411,6 +416,16 @@ export default class QualifyingScene extends Phaser.Scene {
       strokeThickness: 4
     });
     
+    // Add debug coordinates text (only visible if debug flag is enabled)
+    this.ui.debugCoords = this.add.text(20, 260, '', {
+      fontSize: '24px',
+      fontFamily: 'Titillium Web',
+      color: '#ffff00',
+      stroke: '#000000',
+      strokeThickness: 3
+    });
+    this.ui.debugCoords.setVisible(this.debug.showClickCoordinates);
+    
     // Add all UI elements to container
     this.ui.container.add([
       this.ui.lapCounter,
@@ -418,11 +433,12 @@ export default class QualifyingScene extends Phaser.Scene {
       this.ui.timer,
       this.ui.lapTime,
       this.ui.bestLap,
-      this.ui.notification
+      this.ui.notification,
+      this.ui.debugCoords
     ]);
 
     // Make UI elements more visible with background
-    const uiBackground = this.add.rectangle(10, 10, 300, 260, 0x000000, 0.5);
+    const uiBackground = this.add.rectangle(10, 10, 300, 300, 0x000000, 0.5);
     uiBackground.setOrigin(0, 0);
     uiBackground.setScrollFactor(0);
     this.ui.container.add(uiBackground);
@@ -773,5 +789,27 @@ export default class QualifyingScene extends Phaser.Scene {
     this.trackSegments = [];
     this.raceData.lapTimes = [];
     this.raceData.checkpointsPassed.clear();
+  }
+
+  setupDebugClickHandler() {
+    // Add click handler to the game
+    this.input.on('pointerdown', (pointer) => {
+      // Only show debug info if debug flag is enabled
+      if (this.debug.showClickCoordinates) {
+        // Get world position (accounting for camera position and zoom)
+        const worldX = Math.round(pointer.worldX);
+        const worldY = Math.round(pointer.worldY);
+        
+        // Update debug coordinates text
+        this.ui.debugCoords.setText(`DEBUG - X: ${worldX}, Y: ${worldY}`);
+        
+        // Log to console
+        console.log(`Clicked at - X: ${worldX}, Y: ${worldY}`);
+        
+        // Optional: Show a temporary marker at the clicked position
+        const marker = this.add.circle(worldX, worldY, 5, 0xffff00);
+        this.time.delayedCall(1000, () => marker.destroy());
+      }
+    });
   }
 } 
