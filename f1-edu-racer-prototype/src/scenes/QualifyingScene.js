@@ -120,6 +120,12 @@ export default class QualifyingScene extends Phaser.Scene {
       accent: 0x00D2BE,
       white: 0xFFFFFF
     };
+
+    // Debug flags
+    this.debug = {
+      showCarPosition: false, // Toggle for car position logging
+      showBoundaries: false  // Toggle for boundary wall visibility
+    };
   }
 
   preload() {
@@ -223,7 +229,7 @@ export default class QualifyingScene extends Phaser.Scene {
           (start.x + end.x) / 2,
           (start.y + end.y) / 2,
           length,
-          10,  // Reduced thickness for more precise collisions
+          70,  // Reduced thickness for more precise collisions
           0xFF0000
         );
         
@@ -236,9 +242,12 @@ export default class QualifyingScene extends Phaser.Scene {
         // Make the wall a sensor (allows pass-through)
         wall.body.isSensor = true;
         
-        // Enable debug visualization of physics body
-        wall.body.debugShowBody = true;
+        // Enable debug visualization of physics body only if debug flag is set
+        wall.body.debugShowBody = this.debug.showBoundaries;
         wall.body.debugBodyColor = 0xFF0000;
+        
+        // Set wall visibility based on debug flag
+        wall.setAlpha(this.debug.showBoundaries ? 0.3 : 0);
         
         // Add to boundaries group
         this.boundaries.add(wall);
@@ -248,7 +257,8 @@ export default class QualifyingScene extends Phaser.Scene {
           0, 0,
           start.x, start.y,
           end.x, end.y,
-          0xFF0000, 0.3
+          0xFF0000,
+          this.debug.showBoundaries ? 0.3 : 0  // Set line alpha based on debug flag
         );
         line.setLineWidth(1);
         line.setOrigin(0, 0);
@@ -510,7 +520,7 @@ export default class QualifyingScene extends Phaser.Scene {
     this.updateUI();
 
     // Log car position when moving
-    if (this.car && (this.cursors.up.isDown || this.cursors.down.isDown || this.cursors.left.isDown || this.cursors.right.isDown)) {
+    if (this.car && this.debug.showCarPosition && (this.cursors.up.isDown || this.cursors.down.isDown || this.cursors.left.isDown || this.cursors.right.isDown)) {
       console.log(`Car Position - X: ${Math.round(this.car.x)}, Y: ${Math.round(this.car.y)}, Rotation: ${Math.round(this.car.angle)}`);
     }
   }
