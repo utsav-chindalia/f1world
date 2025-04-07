@@ -65,9 +65,6 @@ export default class GameScene extends Phaser.Scene {
     // Create track layout first to set up grid positions
     this.createTrackLayout();
     
-    // Create level headings with F1 styling
-    this.createLevelHeadings();
-    
     // Create help button on the right side
     this.createHelpButton();
 
@@ -518,66 +515,49 @@ export default class GameScene extends Phaser.Scene {
     }
   }
 
-  createLevelHeadings() {
+  createF1UIFrame() {
     const { width, height } = this.scale;
-    const leftBoundaryX = width / 2 - this.trackWidth / 2 - 20;
     
-    // Modern F1 style level selection
-    const heading = this.add.text(leftBoundaryX, height * 0.12, 'MODE SELECT', {
-      fontSize: '18px',
+    // Create modern F1 top bar
+    const topBar = this.add.graphics();
+    topBar.fillStyle(this.f1Blue, 0.9);
+    topBar.fillRect(0, 0, width, 60);
+    
+    // Add F1 red accent line under top bar
+    const redAccent = this.add.graphics();
+    redAccent.fillStyle(this.f1Red, 1);
+    redAccent.fillRect(0, 60, width, 4);
+    
+    // Add title to top bar
+    this.add.text(width / 2, 30, 'F1 REACTION TRAINER', {
+      fontSize: '24px',
       fontFamily: 'Titillium Web',
-      color: '#777777',
-      align: 'right'
-    }).setOrigin(1, 0.5);
-    
-    const levels = [
-      { name: 'Race Start', available: true },
-      { name: 'First Corner', available: false },
-      { name: 'Overtake', available: false },
-      { name: 'Qualify', available: false },
-      { name: '...', available: false }
-    ];
+      fontWeight: 'bold',
+      color: '#ffffff'
+    }).setOrigin(0.5);
 
-    levels.forEach((level, index) => {
-      const yPos = height * 0.2 + (index * 60);
-      
-      // Box background for levels - F1 style menu
-      const bgColor = level.available ? 0x222233 : 0x1A1A22;
-      const boxGraphics = this.add.graphics();
-      boxGraphics.fillStyle(bgColor, 0.8);
-      boxGraphics.fillRoundedRect(leftBoundaryX - 180, yPos - 20, 180, 40, 5);
-      
-      if (level.available) {
-        boxGraphics.lineStyle(2, this.f1Accent);
-        boxGraphics.strokeRoundedRect(leftBoundaryX - 180, yPos - 20, 180, 40, 5);
-      }
-      
-      // Add level name
-      const levelText = this.add.text(leftBoundaryX - 10, yPos, level.name, {
-        fontSize: '20px',
-        fontFamily: 'Titillium Web',
-        fontWeight: 'bold',
-        color: level.available ? '#ffffff' : '#555555',
-        align: 'right'
-      }).setOrigin(1, 0.5);
+    // Add main menu button
+    const menuButton = this.add.text(80, 30, 'MENU', {
+      fontSize: '20px',
+      fontFamily: 'Titillium Web',
+      fontWeight: 'bold',
+      color: '#ffffff',
+      backgroundColor: this.f1Red,
+      padding: { x: 12, y: 6 }
+    }).setOrigin(0.5)
+      .setInteractive({ useHandCursor: true });
 
-      // Add status indicator - F1 style
-      if (level.available) {
-        const statusDot = this.add.circle(leftBoundaryX - 170, yPos, 6, this.f1Accent);
-        
-        // Add small animation to active dot
-        this.tweens.add({
-          targets: statusDot,
-          alpha: 0.5,
-          duration: 1000,
-          yoyo: true,
-          repeat: -1
-        });
-      } else {
-        const lockIcon = this.add.text(leftBoundaryX - 170, yPos, '🔒', {
-          fontSize: '16px'
-        }).setOrigin(0.5);
-      }
+    // Add hover effects
+    menuButton.on('pointerover', () => {
+      menuButton.setStyle({ backgroundColor: '#FF1A14' });
+    });
+    menuButton.on('pointerout', () => {
+      menuButton.setStyle({ backgroundColor: this.f1Red });
+    });
+
+    // Add click handler to return to main menu
+    menuButton.on('pointerdown', () => {
+      this.scene.start('MainMenuScene');
     });
   }
 
@@ -611,27 +591,5 @@ export default class GameScene extends Phaser.Scene {
       
       this.lights.push(light);
     }
-  }
-  
-  createF1UIFrame() {
-    const { width, height } = this.scale;
-    
-    // Create modern F1 top bar
-    const topBar = this.add.graphics();
-    topBar.fillStyle(this.f1Blue, 0.9);
-    topBar.fillRect(0, 0, width, 60);
-    
-    // Add F1 red accent line under top bar
-    const redAccent = this.add.graphics();
-    redAccent.fillStyle(this.f1Red, 1);
-    redAccent.fillRect(0, 60, width, 4);
-    
-    // Add title to top bar
-    this.add.text(width / 2, 30, 'F1 REACTION TRAINER', {
-      fontSize: '24px',
-      fontFamily: 'Titillium Web',
-      fontWeight: 'bold',
-      color: '#ffffff'
-    }).setOrigin(0.5);
   }
 } 
