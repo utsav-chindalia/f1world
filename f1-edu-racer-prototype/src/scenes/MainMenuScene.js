@@ -60,7 +60,7 @@ export default class MainMenuScene extends Phaser.Scene {
     startButtonBg.fillStyle(0xE10600, 1);
     startButtonBg.fillRoundedRect(-120, -25, 240, 50, 5);
     
-    const startButton = this.add.text(0, 0, 'START RACE', buttonStyle)
+    const startButton = this.add.text(0, 0, 'Race Start Practice', buttonStyle)
       .setOrigin(0.5)
       .setInteractive({ useHandCursor: true })
       .on('pointerover', () => {
@@ -98,7 +98,8 @@ export default class MainMenuScene extends Phaser.Scene {
         qualifyingButtonBg.fillRoundedRect(-120, 35, 240, 50, 5);
       })
       .on('pointerdown', () => {
-        this.scene.stop('MainMenuScene');
+        // Update URL without reloading and start qualifying scene
+        window.history.pushState({}, '', '/qualifying');
         this.scene.start('QualifyingScene');
       });
       
@@ -122,9 +123,9 @@ export default class MainMenuScene extends Phaser.Scene {
       buttonContainer.add(lockIcon);
     };
 
-    createDisabledButton(120, 'TUTORIALS');
-    createDisabledButton(180, 'GHOST MODE');
-    createDisabledButton(240, 'SETTINGS');
+    createDisabledButton(120, 'First Corner');
+    createDisabledButton(180, 'Overtake');
+    createDisabledButton(240, 'Race Strategy');
     
     // Add F1 style footer text
     this.add.text(width / 2, height - 40, 'F1 EDU-RACER © 2023', {

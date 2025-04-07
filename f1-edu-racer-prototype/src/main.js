@@ -24,5 +24,22 @@ const config = {
 
 const game = new Phaser.Game(config);
 
-// Start with main menu
-game.scene.start('MainMenuScene'); 
+// Function to handle scene routing based on URL path
+const handleSceneRouting = () => {
+  const path = window.location.pathname;
+  
+  switch (path) {
+    case '/qualifying':
+      game.scene.start('QualifyingScene');
+      break;
+    default:
+      game.scene.start('MainMenuScene');
+      break;
+  }
+};
+
+// Initial routing
+handleSceneRouting();
+
+// Handle browser back/forward buttons
+window.addEventListener('popstate', handleSceneRouting); 
