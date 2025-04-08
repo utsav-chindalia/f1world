@@ -4,6 +4,9 @@ export default class QualifyingScene extends Phaser.Scene {
   constructor() {
     super({ key: 'QualifyingScene' });
     
+    // Make the scene instance globally accessible for debugging
+    window.qualifyingScene = this;
+    
     // Track properties
     this.trackConfig = {
       width: 1920 * 2,  // Wide track for proper F1 circuit
@@ -21,6 +24,28 @@ export default class QualifyingScene extends Phaser.Scene {
         grass: { grip: 0.3, drag: 0.95 },
         gravel: { grip: 0.2, drag: 0.90 }
       }
+    };
+
+    // Add racing line properties
+    this.racingLine = {
+      points: [],
+      visible: true,
+      color: 0x00ff00,
+      alpha: 0.5,
+      lineWidth: 4
+    };
+
+    // Add racing line recording properties
+    this.racingLineRecorder = {
+      isRecording: false,
+      currentLapPoints: [],
+      sampleRate: 5,
+      frameCount: 0,
+      minSpeed: 50,
+      lapHistory: {}, // Store all lap attempts with their racing lines
+      isLapActive: false,
+      showRacingLine: false, // Default racing line visibility to false
+      captureEnabled: false  // Default capture to false
     };
 
     // Car properties
@@ -138,6 +163,9 @@ export default class QualifyingScene extends Phaser.Scene {
     this.load.image('checkpoint', '/assets/sprites/checkpoint.png');
     this.load.image('minimap', '/assets/ui/minimap_frame.png');
     
+    // Load racing line data
+    this.load.json('racing_line', '/assets/jsons/racing_line.json');
+    
     // Load surface textures
     this.load.image('grass', '/assets/textures/grass.png');
     this.load.image('gravel', '/assets/textures/gravel.png');
@@ -157,6 +185,9 @@ export default class QualifyingScene extends Phaser.Scene {
   create() {
     // Initialize track
     this.createTrack();
+    
+    // Create racing line (initially invisible)
+    this.createRacingLine();
     
     // Initialize car
     this.createCar();
@@ -181,6 +212,39 @@ export default class QualifyingScene extends Phaser.Scene {
     
     // Setup click debug handler
     this.setupDebugClickHandler();
+
+    // Add racing line toggle controls with UI feedback
+    this.input.keyboard.on('keydown-R', () => {
+        this.racingLineRecorder.showRacingLine = !this.racingLineRecorder.showRacingLine;
+        if (this.racingLineGraphics) {
+            this.racingLineGraphics.setVisible(this.racingLineRecorder.showRacingLine);
+        }
+        // Show UI feedback
+        this.ui.notification.setText(`Racing line ${this.racingLineRecorder.showRacingLine ? 'visible' : 'hidden'}`);
+        this.ui.notification.setColor(this.racingLineRecorder.showRacingLine ? '#00ff00' : '#ffff00');
+        this.time.delayedCall(2000, () => {
+            this.ui.notification.setText('');
+        });
+    });
+
+    // Add racing line capture toggle
+    this.input.keyboard.on('keydown-T', () => {
+        this.racingLineRecorder.captureEnabled = !this.racingLineRecorder.captureEnabled;
+        
+        // Show UI feedback
+        this.ui.notification.setText(`Racing line capture ${this.racingLineRecorder.captureEnabled ? 'enabled' : 'disabled'}`);
+        this.ui.notification.setColor(this.racingLineRecorder.captureEnabled ? '#00ff00' : '#ffff00');
+        
+        if (!this.racingLineRecorder.captureEnabled) {
+            // Clear current points if we're disabling mid-lap
+            this.racingLineRecorder.currentLapPoints = [];
+            this.racingLineRecorder.isLapActive = false;
+        }
+        
+        this.time.delayedCall(2000, () => {
+            this.ui.notification.setText('');
+        });
+    });
   }
 
   createTrack() {
@@ -503,14 +567,16 @@ export default class QualifyingScene extends Phaser.Scene {
     this.ui.timer.setText(`TOTAL TIME: ${this.formatTime(currentTime)}`);
     
     // Update current lap time if race has started
-    if (this.raceData.currentLap > 0) {
-      const currentLapTime = this.time.now - this.raceData.currentLapStartTime;
-      this.ui.lapTime.setText(`LAP TIME: ${this.formatTime(currentLapTime)}`);
-      
-      // Show best lap time if exists
-      if (this.raceData.bestLapTime) {
+    if (this.raceData.currentLap > 0 && this.raceData.hasPassedStartLine) {
+        const currentLapTime = this.time.now - this.raceData.currentLapStartTime;
+        this.ui.lapTime.setText(`LAP TIME: ${this.formatTime(currentLapTime)}`);
+    }
+    
+    // Show best lap time if exists
+    if (this.raceData.bestLapTime) {
         this.ui.bestLap.setText(`BEST LAP: ${this.formatTime(this.raceData.bestLapTime)}`);
-      }
+    } else {
+        this.ui.bestLap.setText('BEST LAP: --:--.---');
     }
   }
 
@@ -534,6 +600,34 @@ export default class QualifyingScene extends Phaser.Scene {
     
     // Check surface type under car
     this.checkSurface();
+    
+    // Only record points if capture is enabled and lap is active
+    if (this.racingLineRecorder.captureEnabled && 
+        this.racingLineRecorder.isLapActive && 
+        !this.raceData.lapInvalidated) {
+        
+        this.racingLineRecorder.frameCount++;
+        
+        if (this.racingLineRecorder.frameCount >= this.racingLineRecorder.sampleRate && 
+            this.car.body.velocity.length() > this.racingLineRecorder.minSpeed) {
+            
+            const point = {
+                x: Math.round(this.car.x),
+                y: Math.round(this.car.y),
+                speed: Math.round(this.car.body.velocity.length()),
+                timestamp: time
+            };
+            
+            this.racingLineRecorder.currentLapPoints.push(point);
+            this.racingLineRecorder.frameCount = 0;
+            
+            // Show green dots when capturing is enabled
+            if (this.racingLineRecorder.captureEnabled) {
+                const marker = this.add.circle(this.car.x, this.car.y, 2, 0x00ff00, 0.5);
+                this.time.delayedCall(2000, () => marker.destroy());
+            }
+        }
+    }
     
     // Update UI
     this.updateUI();
@@ -689,55 +783,126 @@ export default class QualifyingScene extends Phaser.Scene {
     const now = this.time.now;
 
     if (!this.raceData.hasPassedStartLine) {
-      // Starting a new lap
-      this.raceData.hasPassedStartLine = true;
-      this.raceData.currentLapStartTime = now;
-      
-      // Reset lap invalidation status
-      if (this.raceData.lapInvalidated) {
-        this.raceData.lapInvalidated = false;
-        this.ui.lapTime.setColor('#ffffff'); // Reset color back to white
-      }
-      
-      // If this is the first lap, start the race timer
-      if (this.raceData.currentLap === 0) {
-        this.raceData.raceStartTime = now;
-        this.raceData.currentLap = 1;
-        console.log('Race started!');
-      }
-    } else {
-      // Completing a lap
-      const lapTime = now - this.raceData.currentLapStartTime;
-      
-      // Prevent accidental double-counting by checking minimum lap time (e.g., 5 seconds)
-      if (lapTime < 5000) {
-        return;
-      }
-      
-      // Only count the lap if it wasn't invalidated
-      if (!this.raceData.lapInvalidated) {
-        this.raceData.lapTimes.push(lapTime);
+        // Starting a new lap
+        this.raceData.hasPassedStartLine = true;
+        this.raceData.currentLapStartTime = now;
         
-        // Update best lap time
-        if (!this.raceData.bestLapTime || lapTime < this.raceData.bestLapTime) {
-          this.raceData.bestLapTime = lapTime;
-          console.log(`New best lap! ${this.formatTime(lapTime)}`);
+        // Only start recording if capture is enabled and we're in a valid state
+        if (!this.raceData.lapInvalidated && this.racingLineRecorder.captureEnabled) {
+            this.racingLineRecorder.isLapActive = true;
+            this.racingLineRecorder.currentLapPoints = [];
+            console.log('\n=== Starting New Lap Recording ===');
+            console.log('Racing line capture enabled - recording points...');
         }
         
-        console.log(`Lap ${this.raceData.currentLap} completed! Time: ${this.formatTime(lapTime)}`);
-      }
-      
-      // Reset for next lap
-      this.raceData.hasPassedStartLine = false;
-      this.raceData.currentLap++;
-      this.raceData.checkpointsPassed.clear();
-      this.raceData.lapInvalidated = false;
-      this.ui.lapTime.setColor('#ffffff'); // Reset color back to white
-      
-      // Check if race is complete
-      if (this.raceData.currentLap > this.raceData.totalLaps) {
-        this.onRaceComplete();
-      }
+        // Reset lap invalidation status
+        if (this.raceData.lapInvalidated) {
+            this.raceData.lapInvalidated = false;
+            this.ui.lapTime.setColor('#ffffff');
+        }
+        
+        // If this is the first lap, start the race timer
+        if (this.raceData.currentLap === 0) {
+            this.raceData.raceStartTime = now;
+            this.raceData.currentLap = 1;
+            console.log('Race started!');
+        }
+    } else {
+        // Completing a lap
+        const lapTime = now - this.raceData.currentLapStartTime;
+        
+        if (lapTime < 5000) return;
+        
+        if (!this.raceData.lapInvalidated) {
+            this.raceData.lapTimes.push(lapTime);
+            
+            console.log(`\n=== Lap ${this.raceData.currentLap} Completed ===`);
+            console.log(`Lap Time: ${this.formatTime(lapTime)}`);
+            
+            if (this.racingLineRecorder.isLapActive) {
+                const lapData = {
+                    points: [...this.racingLineRecorder.currentLapPoints],
+                    lapTime: lapTime,
+                    timestamp: now,
+                    formattedTime: this.formatTime(lapTime)
+                };
+                
+                console.log(`\n=== Racing Line Data ===`);
+                console.log(`Total Points Recorded: ${lapData.points.length}`);
+                console.log(`First Point: ${JSON.stringify(lapData.points[0])}`);
+                console.log(`Last Point: ${JSON.stringify(lapData.points[lapData.points.length - 1])}`);
+                
+                this.racingLineRecorder.lapHistory[this.raceData.currentLap] = lapData;
+                
+                if (lapData.points.length > 0) {
+                    console.log('\nTo view detailed lap data, use:');
+                    console.log(`window.qualifyingScene.printLapData(${this.raceData.currentLap})`);
+                    console.log('\nOr for raw data:');
+                    console.log(`window.qualifyingScene.racingLineRecorder.lapHistory[${this.raceData.currentLap}]`);
+                }
+            } else {
+                console.log('No racing line recorded for this lap (capture was disabled)');
+            }
+            
+            // Update best lap time
+            if (!this.raceData.bestLapTime || lapTime < this.raceData.bestLapTime) {
+                this.raceData.bestLapTime = lapTime;
+                console.log('\n🏆 NEW BEST LAP! 🏆');
+                console.log(`Time: ${this.formatTime(lapTime)}`);
+                
+                // Save best lap racing line if we were capturing
+                if (this.racingLineRecorder.isLapActive) {
+                    this.racingLineRecorder.bestLap = {
+                        lapNumber: this.raceData.currentLap,
+                        time: lapTime,
+                        formattedTime: this.formatTime(lapTime),
+                        points: [...this.racingLineRecorder.currentLapPoints]
+                    };
+                    this.racingLineRecorder.bestLapLine = [...this.racingLineRecorder.currentLapPoints];
+                    console.log(`Best lap racing line updated with ${this.racingLineRecorder.bestLap.points.length} points!`);
+                }
+                
+                // Flash the best lap time in green
+                this.ui.bestLap.setColor('#00ff00');
+                this.time.delayedCall(1000, () => {
+                    this.ui.bestLap.setColor('#ffffff');
+                });
+            }
+            
+            // Output summary of all laps
+            console.log('\n=== Session Summary ===');
+            console.log(`Total Laps: ${this.raceData.lapTimes.length}`);
+            console.log(`Best Lap: ${this.formatTime(this.raceData.bestLapTime)}`);
+            console.log('All Lap Times:');
+            this.raceData.lapTimes.forEach((time, index) => {
+                const lapNumber = index + 1;
+                const lapHasPoints = this.racingLineRecorder.lapHistory[lapNumber]?.points?.length > 0;
+                console.log(`Lap ${lapNumber}: ${this.formatTime(time)}${lapHasPoints ? ' (Racing line recorded)' : ''}`);
+            });
+            
+            if (this.racingLineRecorder.bestLap) {
+                console.log('\n=== Best Lap Details ===');
+                console.log(`Lap Number: ${this.racingLineRecorder.bestLap.lapNumber}`);
+                console.log(`Time: ${this.racingLineRecorder.bestLap.formattedTime}`);
+                console.log(`Points Recorded: ${this.racingLineRecorder.bestLap.points.length}`);
+            }
+        } else {
+            console.log('\n❌ Lap Invalidated - No data saved');
+        }
+        
+        // Reset for next lap
+        this.racingLineRecorder.isLapActive = false;
+        this.racingLineRecorder.currentLapPoints = [];
+        this.raceData.hasPassedStartLine = false;
+        this.raceData.currentLap++;
+        this.raceData.checkpointsPassed.clear();
+        this.raceData.lapInvalidated = false;
+        this.ui.lapTime.setColor('#ffffff');
+        
+        // Check if race is complete
+        if (this.raceData.currentLap > this.raceData.totalLaps) {
+            this.onRaceComplete();
+        }
     }
   }
 
@@ -756,23 +921,27 @@ export default class QualifyingScene extends Phaser.Scene {
   handleBoundaryCollision(car, wall) {
     // Only invalidate the lap if we haven't already
     if (this.raceData.currentLap > 0 && !this.raceData.lapInvalidated) {
-      this.raceData.lapInvalidated = true;
-      
-      // Show notification
-      this.ui.notification.setText('LAP TIME DELETED - Cut Track');
-      this.ui.notification.setColor('#ff0000');
-      
-      // Clear the current lap time display
-      this.ui.lapTime.setText('LAP TIME: --:--.---');
-      this.ui.lapTime.setColor('#ff0000');
-      
-      // Optional: Add visual feedback
-      this.cameras.main.shake(50, 0.003);
-      
-      // Set a timer to clear the notification after 3 seconds
-      this.time.delayedCall(3000, () => {
-        this.ui.notification.setText('');
-      });
+        this.raceData.lapInvalidated = true;
+        
+        // Stop recording points for this lap
+        this.racingLineRecorder.isLapActive = false;
+        this.racingLineRecorder.currentLapPoints = [];
+        
+        // Show notification
+        this.ui.notification.setText('LAP TIME DELETED - Cut Track');
+        this.ui.notification.setColor('#ff0000');
+        
+        // Clear the current lap time display
+        this.ui.lapTime.setText('LAP TIME: --:--.---');
+        this.ui.lapTime.setColor('#ff0000');
+        
+        // Optional: Add visual feedback
+        this.cameras.main.shake(50, 0.003);
+        
+        // Set a timer to clear the notification after 3 seconds
+        this.time.delayedCall(3000, () => {
+            this.ui.notification.setText('');
+        });
     }
   }
 
@@ -792,24 +961,157 @@ export default class QualifyingScene extends Phaser.Scene {
   }
 
   setupDebugClickHandler() {
+    // Add racing line recording mode
+    let isRecordingRacingLine = false;
+    let racingLinePoints = [];
+    
+    // Add keyboard shortcut to toggle recording mode
+    this.input.keyboard.on('keydown-L', () => {
+        isRecordingRacingLine = !isRecordingRacingLine;
+        if (isRecordingRacingLine) {
+            racingLinePoints = [];
+            console.log('Racing line recording started');
+            this.ui.notification.setText('Racing line recording started');
+            this.ui.notification.setColor('#00ff00');
+        } else {
+            console.log('Racing line points:', JSON.stringify({ racing_line: racingLinePoints }, null, 2));
+            this.ui.notification.setText('Racing line recording stopped - Check console for points');
+            this.ui.notification.setColor('#ffff00');
+            
+            // Clear notification after 3 seconds
+            this.time.delayedCall(3000, () => {
+                this.ui.notification.setText('');
+            });
+        }
+    });
+    
     // Add click handler to the game
     this.input.on('pointerdown', (pointer) => {
-      // Only show debug info if debug flag is enabled
-      if (this.debug.showClickCoordinates) {
-        // Get world position (accounting for camera position and zoom)
         const worldX = Math.round(pointer.worldX);
         const worldY = Math.round(pointer.worldY);
         
-        // Update debug coordinates text
-        this.ui.debugCoords.setText(`DEBUG - X: ${worldX}, Y: ${worldY}`);
+        if (isRecordingRacingLine) {
+            racingLinePoints.push({ x: worldX, y: worldY });
+            
+            // Show visual feedback
+            const marker = this.add.circle(worldX, worldY, 5, 0x00ff00);
+            
+            // Draw line connecting points
+            if (racingLinePoints.length > 1) {
+                const prevPoint = racingLinePoints[racingLinePoints.length - 2];
+                const line = this.add.line(
+                    0, 0,
+                    prevPoint.x, prevPoint.y,
+                    worldX, worldY,
+                    0x00ff00
+                ).setOrigin(0, 0);
+                line.setLineWidth(2);
+            }
+        }
         
-        // Log to console
-        console.log(`Clicked at - X: ${worldX}, Y: ${worldY}`);
-        
-        // Optional: Show a temporary marker at the clicked position
-        const marker = this.add.circle(worldX, worldY, 5, 0xffff00);
-        this.time.delayedCall(1000, () => marker.destroy());
-      }
+        // Only show debug info if debug flag is enabled
+        if (this.debug.showClickCoordinates) {
+            // Update debug coordinates text
+            this.ui.debugCoords.setText(`DEBUG - X: ${worldX}, Y: ${worldY}`);
+            
+            // Log to console
+            console.log(`Clicked at - X: ${worldX}, Y: ${worldY}`);
+            
+            // Optional: Show a temporary marker at the clicked position
+            const marker = this.add.circle(worldX, worldY, 5, 0xffff00);
+            this.time.delayedCall(1000, () => marker.destroy());
+        }
     });
+  }
+
+  createRacingLine() {
+    // Get racing line data
+    const racingLineData = this.cache.json.get('racing_line');
+    
+    // Store points
+    this.racingLine.points = racingLineData.racing_line;
+    
+    // Create graphics object for racing line
+    this.racingLineGraphics = this.add.graphics();
+    this.racingLineGraphics.lineStyle(
+        this.racingLine.lineWidth,
+        this.racingLine.color,
+        this.racingLine.alpha
+    );
+    
+    // Draw the racing line
+    if (this.racingLine.points.length > 1) {
+        this.racingLineGraphics.beginPath();
+        this.racingLineGraphics.moveTo(
+            this.racingLine.points[0].x,
+            this.racingLine.points[0].y
+        );
+        
+        // Draw smooth curve through points
+        for (let i = 1; i < this.racingLine.points.length; i++) {
+            const point = this.racingLine.points[i];
+            this.racingLineGraphics.lineTo(point.x, point.y);
+        }
+        
+        // Close the loop if it's a circuit
+        if (this.racingLine.points.length > 2) {
+            this.racingLineGraphics.lineTo(
+                this.racingLine.points[0].x,
+                this.racingLine.points[0].y
+            );
+        }
+        
+        this.racingLineGraphics.strokePath();
+    }
+    
+    // Set initial visibility to false
+    this.racingLineGraphics.setVisible(false);
+  }
+
+  // Add helper method to get lap data
+  getLapData(lapNumber) {
+    return this.racingLineRecorder.lapHistory[lapNumber];
+  }
+
+  // Add helper method to get all laps data
+  getAllLapsData() {
+    return this.racingLineRecorder.lapHistory;
+  }
+
+  // Add helper method to get best lap data
+  getBestLapData() {
+    return this.racingLineRecorder.bestLap;
+  }
+
+  // Add after the helper methods
+  printLapData(lapNumber) {
+    const lapData = this.getLapData(lapNumber);
+    if (!lapData) {
+        console.log(`No data available for lap ${lapNumber}`);
+        return;
+    }
+
+    console.log(`\n=== Lap ${lapNumber} Details ===`);
+    console.log(`Time: ${lapData.formattedTime}`);
+    console.log(`Points Recorded: ${lapData.points.length}`);
+    console.log(`Average Speed: ${this.calculateAverageSpeed(lapData.points)} KPH`);
+    
+    if (lapData.points.length > 0) {
+        console.log('\nFirst 3 points:');
+        lapData.points.slice(0, 3).forEach((point, index) => {
+            console.log(`${index + 1}: x=${point.x}, y=${point.y}, speed=${Math.round(point.speed * 3.6)} KPH`);
+        });
+        
+        console.log('\nLast 3 points:');
+        lapData.points.slice(-3).forEach((point, index) => {
+            console.log(`${lapData.points.length - 2 + index}: x=${point.x}, y=${point.y}, speed=${Math.round(point.speed * 3.6)} KPH`);
+        });
+    }
+  }
+
+  calculateAverageSpeed(points) {
+    if (!points || points.length === 0) return 0;
+    const avgSpeed = points.reduce((sum, point) => sum + point.speed, 0) / points.length;
+    return Math.round(avgSpeed * 3.6); // Convert to KPH and round
   }
 } 
