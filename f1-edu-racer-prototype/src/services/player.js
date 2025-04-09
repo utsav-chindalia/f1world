@@ -12,7 +12,6 @@ export const PlayerService = {
       const { data: player, error } = await supabase
         .from('players')
         .upsert({
-          id: supabase.auth.user()?.id,
           username: data.username
         })
         .select()

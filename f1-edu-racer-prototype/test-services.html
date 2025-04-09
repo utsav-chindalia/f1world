@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>F1 Racing Educator - Service Tests</title>
+    <style>
+        body {
+            font-family: 'Monaco', monospace;
+            background: #1e1e1e;
+            color: #d4d4d4;
+            padding: 20px;
+            margin: 0;
+        }
+        #console {
+            background: #000000;
+            padding: 20px;
+            border-radius: 5px;
+            white-space: pre-wrap;
+            font-size: 14px;
+            line-height: 1.5;
+            max-height: 80vh;
+            overflow-y: auto;
+        }
+        .success { color: #6A9955; }
+        .error { color: #F14C4C; }
+        .info { color: #569CD6; }
+        .warning { color: #DCDCAA; }
+        button {
+            background: #0078D4;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            margin: 5px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-family: inherit;
+        }
+        button:hover {
+            background: #106EBE;
+        }
+        .controls {
+            margin-bottom: 20px;
+        }
+    </style>
+</head>
+<body>
+    <div class="controls">
+        <button onclick="runTest('all')">Run All Tests</button>
+        <button onclick="runTest('player')">Test Player Service</button>
+        <button onclick="runTest('racing')">Test Racing Line Service</button>
+        <button onclick="runTest('leaderboard')">Test Leaderboard Service</button>
+        <button onclick="clearConsole()">Clear Console</button>
+    </div>
+    <div id="console"></div>
+
+    <script type="module">
+        import { ServiceTests } from './src/services/test-services.js';
+
+        // Make test functions available globally
+        window.ServiceTests = ServiceTests;
+
+        // Console output handling
+        const consoleDiv = document.getElementById('console');
+        const originalConsole = {
+            log: console.log,
+            error: console.error,
+            warn: console.warn,
+            info: console.info
+        };
+
+        // Override console methods
+        console.log = (...args) => {
+            originalConsole.log(...args);
+            appendToConsole(args.join(' '), 'success');
+        };
+
+        console.error = (...args) => {
+            originalConsole.error(...args);
+            appendToConsole(args.join(' '), 'error');
+        };
+
+        console.warn = (...args) => {
+            originalConsole.warn(...args);
+            appendToConsole(args.join(' '), 'warning');
+        };
+
+        console.info = (...args) => {
+            originalConsole.info(...args);
+            appendToConsole(args.join(' '), 'info');
+        };
+
+        function appendToConsole(text, type = 'normal') {
+            const div = document.createElement('div');
+            div.className = type;
+            div.textContent = text;
+            consoleDiv.appendChild(div);
+            consoleDiv.scrollTop = consoleDiv.scrollHeight;
+        }
+
+        // Make functions available globally
+        window.runTest = async (type) => {
+            try {
+                switch (type) {
+                    case 'all':
+                        await ServiceTests.runAll();
+                        break;
+                    case 'player':
+                        await ServiceTests.testPlayer();
+                        break;
+                    case 'racing':
+                        await ServiceTests.testRacingLine();
+                        break;
+                    case 'leaderboard':
+                        await ServiceTests.testLeaderboard();
+                        break;
+                }
+            } catch (error) {
+                console.error('Test execution failed:', error);
+            }
+        };
+
+        window.clearConsole = () => {
+            consoleDiv.innerHTML = '';
+        };
+    </script>
+</body>
+</html> 

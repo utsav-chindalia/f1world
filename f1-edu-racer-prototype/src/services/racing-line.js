@@ -15,6 +15,7 @@ export const RacingLineService = {
         .from('lap_records')
         .insert({
           lap_time: data.lapTime,
+          track_id: data.track_id,
           is_valid: true
         })
         .select()
