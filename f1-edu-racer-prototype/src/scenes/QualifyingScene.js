@@ -1,4 +1,7 @@
 import Phaser from 'phaser';
+import { RacingLineService } from '../services/racing-line';
+import { LeaderboardService } from '../services/leaderboard';
+import { PlayerService } from '../services/player';
 
 export default class QualifyingScene extends Phaser.Scene {
   constructor() {
@@ -32,7 +35,9 @@ export default class QualifyingScene extends Phaser.Scene {
       visible: true,
       color: 0x00ff00,
       alpha: 0.5,
-      lineWidth: 4
+      lineWidth: 4,
+      bestLapLine: null, // Store the best lap line from Supabase
+      subscription: null // Store Supabase subscription
     };
 
     // Add racing line recording properties
@@ -182,7 +187,7 @@ export default class QualifyingScene extends Phaser.Scene {
     this.load.json('track_boundaries', '/assets/jsons/track_boundaries.json');
   }
 
-  create() {
+  async create() {
     // Initialize track
     this.createTrack();
     
@@ -212,6 +217,37 @@ export default class QualifyingScene extends Phaser.Scene {
     
     // Setup click debug handler
     this.setupDebugClickHandler();
+
+    // Fetch best racing line from Supabase
+    try {
+      const bestLine = await RacingLineService.getBestRacingLine();
+      if (bestLine) {
+        this.racingLine.bestLapLine = bestLine;
+        // Update best lap time display
+        if (bestLine.lap_record) {
+          this.raceData.bestLapTime = bestLine.lap_record.lap_time;
+          this.ui.bestLap.setText(`BEST LAP: ${this.formatTime(bestLine.lap_record.lap_time)}`);
+        }
+      }
+    } catch (error) {
+      console.error('Error fetching best racing line:', error);
+    }
+
+    // Subscribe to new racing lines
+    this.racingLine.subscription = RacingLineService.subscribeToNewRacingLines((payload) => {
+      if (payload.new && payload.new.lap_record) {
+        const newTime = payload.new.lap_record.lap_time;
+        if (!this.raceData.bestLapTime || newTime < this.raceData.bestLapTime) {
+          this.raceData.bestLapTime = newTime;
+          this.racingLine.bestLapLine = payload.new;
+          this.ui.bestLap.setText(`BEST LAP: ${this.formatTime(newTime)}`);
+          this.ui.bestLap.setColor('#00ff00');
+          this.time.delayedCall(1000, () => {
+            this.ui.bestLap.setColor('#ffffff');
+          });
+        }
+      }
+    });
 
     // Add racing line toggle controls with UI feedback
     this.input.keyboard.on('keydown-R', () => {
@@ -779,7 +815,7 @@ export default class QualifyingScene extends Phaser.Scene {
     this.car.data.surface = 'track';
   }
 
-  onStartFinishLineCross() {
+  async onStartFinishLineCross() {
     const now = this.time.now;
 
     if (!this.raceData.hasPassedStartLine) {
@@ -826,13 +862,36 @@ export default class QualifyingScene extends Phaser.Scene {
                     timestamp: now,
                     formattedTime: this.formatTime(lapTime)
                 };
+
+                // Save to Supabase
+                try {
+                    const result = await RacingLineService.saveRacingLine({
+                        lapTime: lapTime,
+                        points: lapData.points,
+                        metadata: {
+                            carConfig: { ...this.carConfig },
+                            trackConditions: 'dry',
+                            timestamp: now
+                        }
+                    });
+
+                    console.log('Racing line saved to Supabase:', result);
+                    
+                    // Store in local history
+                    this.racingLineRecorder.lapHistory[this.raceData.currentLap] = {
+                        ...lapData,
+                        supabaseId: result.racingLine.id
+                    };
+                } catch (error) {
+                    console.error('Error saving racing line to Supabase:', error);
+                    // Store in local history anyway
+                    this.racingLineRecorder.lapHistory[this.raceData.currentLap] = lapData;
+                }
                 
                 console.log(`\n=== Racing Line Data ===`);
                 console.log(`Total Points Recorded: ${lapData.points.length}`);
                 console.log(`First Point: ${JSON.stringify(lapData.points[0])}`);
                 console.log(`Last Point: ${JSON.stringify(lapData.points[lapData.points.length - 1])}`);
-                
-                this.racingLineRecorder.lapHistory[this.raceData.currentLap] = lapData;
                 
                 if (lapData.points.length > 0) {
                     console.log('\nTo view detailed lap data, use:');
@@ -946,6 +1005,12 @@ export default class QualifyingScene extends Phaser.Scene {
   }
 
   shutdown() {
+    // Cleanup Supabase subscription
+    if (this.racingLine.subscription) {
+      this.racingLine.subscription.unsubscribe();
+      this.racingLine.subscription = null;
+    }
+
     // Cleanup
     this.grass.destroy();
     this.track.destroy();
