@@ -10,6 +10,9 @@ export default class QualifyingScene extends Phaser.Scene {
     // Make the scene instance globally accessible for debugging
     window.qualifyingScene = this;
     
+    // Flag to disable database connections for local development
+    this.disableDB = true; // Can be set to true to disable all DB operations
+    
     // Track properties
     this.trackConfig = {
       width: 1920 * 2,  // Wide track for proper F1 circuit
@@ -218,36 +221,38 @@ export default class QualifyingScene extends Phaser.Scene {
     // Setup click debug handler
     this.setupDebugClickHandler();
 
-    // Fetch best racing line from Supabase
-    try {
-      const bestLine = await RacingLineService.getBestRacingLine();
-      if (bestLine) {
-        this.racingLine.bestLapLine = bestLine;
-        // Update best lap time display
-        if (bestLine.lap_record) {
-          this.raceData.bestLapTime = bestLine.lap_record.lap_time;
-          this.ui.bestLap.setText(`BEST LAP: ${this.formatTime(bestLine.lap_record.lap_time)}`);
+    // Only fetch from DB if not disabled
+    if (!this.disableDB) {
+      try {
+        const bestLine = await RacingLineService.getBestRacingLine();
+        if (bestLine) {
+          this.racingLine.bestLapLine = bestLine;
+          // Update best lap time display
+          if (bestLine.lap_record) {
+            this.raceData.bestLapTime = bestLine.lap_record.lap_time;
+            this.ui.bestLap.setText(`BEST LAP: ${this.formatTime(bestLine.lap_record.lap_time)}`);
+          }
         }
+      } catch (error) {
+        console.error('Error fetching best racing line:', error);
       }
-    } catch (error) {
-      console.error('Error fetching best racing line:', error);
-    }
 
-    // Subscribe to new racing lines
-    this.racingLine.subscription = RacingLineService.subscribeToNewRacingLines((payload) => {
-      if (payload.new && payload.new.lap_record) {
-        const newTime = payload.new.lap_record.lap_time;
-        if (!this.raceData.bestLapTime || newTime < this.raceData.bestLapTime) {
-          this.raceData.bestLapTime = newTime;
-          this.racingLine.bestLapLine = payload.new;
-          this.ui.bestLap.setText(`BEST LAP: ${this.formatTime(newTime)}`);
-          this.ui.bestLap.setColor('#00ff00');
-          this.time.delayedCall(1000, () => {
-            this.ui.bestLap.setColor('#ffffff');
-          });
+      // Subscribe to new racing lines only if DB is enabled
+      this.racingLine.subscription = RacingLineService.subscribeToNewRacingLines((payload) => {
+        if (payload.new && payload.new.lap_record) {
+          const newTime = payload.new.lap_record.lap_time;
+          if (!this.raceData.bestLapTime || newTime < this.raceData.bestLapTime) {
+            this.raceData.bestLapTime = newTime;
+            this.racingLine.bestLapLine = payload.new;
+            this.ui.bestLap.setText(`BEST LAP: ${this.formatTime(newTime)}`);
+            this.ui.bestLap.setColor('#00ff00');
+            this.time.delayedCall(1000, () => {
+              this.ui.bestLap.setColor('#ffffff');
+            });
+          }
         }
-      }
-    });
+      });
+    }
 
     // Add racing line toggle controls with UI feedback
     this.input.keyboard.on('keydown-R', () => {
@@ -872,39 +877,45 @@ export default class QualifyingScene extends Phaser.Scene {
             if (this.racingLineRecorder.isLapActive) {
                 lapData.points = [...this.racingLineRecorder.currentLapPoints];
                 
-                // Save racing line and lap time to Supabase
-                try {
-                    const result = await RacingLineService.saveRacingLine({
-                        lapTime: Math.floor(lapTime),
-                        points: lapData.points,
-                        metadata: lapData.metadata,
-                        track_id: lapData.metadata.track_id // Pass track_id from metadata
-                    });
+                // Save racing line and lap time to Supabase only if DB is not disabled
+                if (!this.disableDB) {
+                    try {
+                        const result = await RacingLineService.saveRacingLine({
+                            lapTime: Math.floor(lapTime),
+                            points: lapData.points,
+                            metadata: lapData.metadata,
+                            track_id: lapData.metadata.track_id // Pass track_id from metadata
+                        });
 
-                    console.log('Racing line and lap time saved to Supabase:', result);
-                    
-                    // Store in local history with Supabase ID
-                    this.racingLineRecorder.lapHistory[this.raceData.currentLap] = {
-                        ...lapData,
-                        supabaseId: result.racingLine.id
-                    };
+                        console.log('Racing line and lap time saved to Supabase:', result);
+                        
+                        // Store in local history with Supabase ID
+                        this.racingLineRecorder.lapHistory[this.raceData.currentLap] = {
+                            ...lapData,
+                            supabaseId: result.racingLine.id
+                        };
 
-                    // Show success notification
-                    this.ui.notification.setText('Lap time saved! 🏁');
-                    this.ui.notification.setColor('#00ff00');
-                    this.time.delayedCall(2000, () => {
-                        this.ui.notification.setText('');
-                    });
-                } catch (error) {
-                    console.error('Error saving racing line and lap time to Supabase:', error);
-                    // Show error notification
-                    this.ui.notification.setText('Failed to save lap time ❌');
-                    this.ui.notification.setColor('#ff0000');
-                    this.time.delayedCall(2000, () => {
-                        this.ui.notification.setText('');
-                    });
-                    // Store in local history anyway
+                        // Show success notification
+                        this.ui.notification.setText('Lap time saved! 🏁');
+                        this.ui.notification.setColor('#00ff00');
+                        this.time.delayedCall(2000, () => {
+                            this.ui.notification.setText('');
+                        });
+                    } catch (error) {
+                        console.error('Error saving racing line and lap time to Supabase:', error);
+                        // Show error notification
+                        this.ui.notification.setText('Failed to save lap time ❌');
+                        this.ui.notification.setColor('#ff0000');
+                        this.time.delayedCall(2000, () => {
+                            this.ui.notification.setText('');
+                        });
+                        // Store in local history anyway
+                        this.racingLineRecorder.lapHistory[this.raceData.currentLap] = lapData;
+                    }
+                } else {
+                    // If DB is disabled, just store in local history
                     this.racingLineRecorder.lapHistory[this.raceData.currentLap] = lapData;
+                    console.log('DB disabled - Lap data stored locally only');
                 }
                 
                 console.log(`\n=== Racing Line Data ===`);
@@ -1041,8 +1052,8 @@ export default class QualifyingScene extends Phaser.Scene {
   }
 
   shutdown() {
-    // Cleanup Supabase subscription
-    if (this.racingLine.subscription) {
+    // Cleanup Supabase subscription if exists and DB is not disabled
+    if (!this.disableDB && this.racingLine.subscription) {
       this.racingLine.subscription.unsubscribe();
       this.racingLine.subscription = null;
     }
