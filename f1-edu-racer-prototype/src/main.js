@@ -3,11 +3,17 @@ import Phaser from 'phaser';
 import MainMenuScene from './scenes/MainMenuScene';
 import GameScene from './scenes/GameScene';
 import QualifyingScene from './scenes/QualifyingScene';
+import PlayerNameScene from './scenes/PlayerNameScene';
 
 const config = {
   type: Phaser.AUTO,
+  parent: 'game',
   width: 1280,
   height: 720,
+  backgroundColor: '#15151E',
+  dom: {
+    createContainer: true
+  },
   physics: {
     default: 'arcade',
     arcade: {
@@ -15,7 +21,7 @@ const config = {
       debug: false
     }
   },
-  scene: [MainMenuScene, GameScene, QualifyingScene],
+  scene: [MainMenuScene, PlayerNameScene, GameScene, QualifyingScene],
   scale: {
     mode: Phaser.Scale.FIT,
     autoCenter: Phaser.Scale.CENTER_BOTH
@@ -30,7 +36,7 @@ const handleSceneRouting = () => {
   
   switch (path) {
     case '/qualifying':
-      game.scene.start('QualifyingScene');
+      game.scene.start('PlayerNameScene');
       break;
     default:
       game.scene.start('MainMenuScene');

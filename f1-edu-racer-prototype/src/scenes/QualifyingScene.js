@@ -7,6 +7,9 @@ export default class QualifyingScene extends Phaser.Scene {
   constructor() {
     super({ key: 'QualifyingScene' });
     
+    // Add player name
+    this.playerName = localStorage.getItem('playerName') || 'Unknown Player';
+    
     // Make the scene instance globally accessible for debugging
     window.qualifyingScene = this;
     
@@ -148,7 +151,8 @@ export default class QualifyingScene extends Phaser.Scene {
       lapTime: null,
       bestLap: null,
       notification: null,  // Add notification text element
-      debugCoords: null  // Add debug coordinates text element
+      debugCoords: null,  // Add debug coordinates text element
+      playerName: null
     };
 
     // F1 style colors
@@ -515,8 +519,8 @@ export default class QualifyingScene extends Phaser.Scene {
     this.ui.container = this.add.container(0, 0);
     this.ui.container.setScrollFactor(0);
     
-    // Add lap counter
-    this.ui.lapCounter = this.add.text(20, 20, 'LAP: 0/3', {
+    // Add player name display
+    this.ui.playerName = this.add.text(20, 20, `DRIVER: ${this.playerName}`, {
       fontSize: '28px',
       fontFamily: 'Titillium Web',
       color: '#ffffff',
@@ -524,8 +528,8 @@ export default class QualifyingScene extends Phaser.Scene {
       strokeThickness: 4
     });
     
-    // Add speed display
-    this.ui.speedometer = this.add.text(20, 60, 'SPEED: 0 KPH', {
+    // Add lap counter with adjusted position
+    this.ui.lapCounter = this.add.text(20, 60, 'LAP: 0/3', {
       fontSize: '28px',
       fontFamily: 'Titillium Web',
       color: '#ffffff',
@@ -533,8 +537,17 @@ export default class QualifyingScene extends Phaser.Scene {
       strokeThickness: 4
     });
     
-    // Add timer
-    this.ui.timer = this.add.text(20, 100, 'TOTAL TIME: 00:00.000', {
+    // Add speed display with adjusted position
+    this.ui.speedometer = this.add.text(20, 100, 'SPEED: 0 KPH', {
+      fontSize: '28px',
+      fontFamily: 'Titillium Web',
+      color: '#ffffff',
+      stroke: '#000000',
+      strokeThickness: 4
+    });
+    
+    // Add timer with adjusted position
+    this.ui.timer = this.add.text(20, 140, 'TOTAL TIME: 00:00.000', {
       fontSize: '28px',
       fontFamily: 'Titillium Web',
       color: '#ffffff',
@@ -542,8 +555,8 @@ export default class QualifyingScene extends Phaser.Scene {
       strokeThickness: 4
     });
 
-    // Add current lap time
-    this.ui.lapTime = this.add.text(20, 140, 'LAP TIME: 00:00.000', {
+    // Add current lap time with adjusted position
+    this.ui.lapTime = this.add.text(20, 180, 'LAP TIME: 00:00.000', {
       fontSize: '28px',
       fontFamily: 'Titillium Web',
       color: '#ffffff',
@@ -551,8 +564,8 @@ export default class QualifyingScene extends Phaser.Scene {
       strokeThickness: 4
     });
 
-    // Add best lap time
-    this.ui.bestLap = this.add.text(20, 180, 'BEST LAP: --:--.---', {
+    // Add best lap time with adjusted position
+    this.ui.bestLap = this.add.text(20, 220, 'BEST LAP: --:--.---', {
       fontSize: '28px',
       fontFamily: 'Titillium Web',
       color: '#00ff00',
@@ -560,8 +573,8 @@ export default class QualifyingScene extends Phaser.Scene {
       strokeThickness: 4
     });
     
-    // Add notification text
-    this.ui.notification = this.add.text(20, 220, '', {
+    // Add notification text with adjusted position
+    this.ui.notification = this.add.text(20, 260, '', {
       fontSize: '28px',
       fontFamily: 'Titillium Web',
       color: '#ffffff',
@@ -569,8 +582,8 @@ export default class QualifyingScene extends Phaser.Scene {
       strokeThickness: 4
     });
     
-    // Add debug coordinates text (only visible if debug flag is enabled)
-    this.ui.debugCoords = this.add.text(20, 260, '', {
+    // Add debug coordinates text with adjusted position
+    this.ui.debugCoords = this.add.text(20, 300, '', {
       fontSize: '24px',
       fontFamily: 'Titillium Web',
       color: '#ffff00',
@@ -581,6 +594,7 @@ export default class QualifyingScene extends Phaser.Scene {
     
     // Add all UI elements to container
     this.ui.container.add([
+      this.ui.playerName,
       this.ui.lapCounter,
       this.ui.speedometer,
       this.ui.timer,
@@ -591,7 +605,7 @@ export default class QualifyingScene extends Phaser.Scene {
     ]);
 
     // Make UI elements more visible with background
-    const uiBackground = this.add.rectangle(10, 10, 300, 300, 0x000000, 0.5);
+    const uiBackground = this.add.rectangle(10, 10, 300, 350, 0x000000, 0.5);
     uiBackground.setOrigin(0, 0);
     uiBackground.setScrollFactor(0);
     this.ui.container.add(uiBackground);
