@@ -40,7 +40,11 @@ export default class QualifyingScene extends Phaser.Scene {
       alpha: 0.5,
       lineWidth: 4,
       bestLapLine: null, // Store the best lap line from Supabase
-      subscription: null // Store Supabase subscription
+      subscription: null, // Store Supabase subscription
+      autoMode: {
+        enabled: false,
+        currentPointIndex: 0
+      }
     };
 
     // Add racing line recording properties
@@ -280,6 +284,50 @@ export default class QualifyingScene extends Phaser.Scene {
             // Clear current points if we're disabling mid-lap
             this.racingLineRecorder.currentLapPoints = [];
             this.racingLineRecorder.isLapActive = false;
+        }
+        
+        this.time.delayedCall(2000, () => {
+            this.ui.notification.setText('');
+        });
+    });
+
+    // Add auto mode toggle
+    this.input.keyboard.on('keydown-A', () => {
+        // Toggle auto mode
+        this.racingLine.autoMode.enabled = !this.racingLine.autoMode.enabled;
+        
+        if (this.racingLine.autoMode.enabled) {
+            // Find closest point to start from
+            const points = this.racingLine.bestLapLine?.points || this.racingLine.points;
+            if (points.length === 0) {
+                this.ui.notification.setText('No racing line available for auto mode');
+                this.ui.notification.setColor('#ff0000');
+                this.racingLine.autoMode.enabled = false;
+                this.time.delayedCall(2000, () => {
+                    this.ui.notification.setText('');
+                });
+                return;
+            }
+            
+            // Find closest point
+            let closestDist = Infinity;
+            let closestIndex = 0;
+            points.forEach((point, index) => {
+                const dist = Phaser.Math.Distance.Between(this.car.x, this.car.y, point.x, point.y);
+                if (dist < closestDist) {
+                    closestDist = dist;
+                    closestIndex = index;
+                }
+            });
+            
+            this.racingLine.autoMode.currentPointIndex = closestIndex;
+            
+            // Show notification
+            this.ui.notification.setText('Auto mode enabled');
+            this.ui.notification.setColor('#00ff00');
+        } else {
+            this.ui.notification.setText('Auto mode disabled');
+            this.ui.notification.setColor('#ffff00');
         }
         
         this.time.delayedCall(2000, () => {
@@ -680,6 +728,60 @@ export default class QualifyingScene extends Phaser.Scene {
   }
 
   handleCarMovement(delta) {
+    // If auto mode is enabled, follow racing line
+    if (this.racingLine.autoMode.enabled) {
+      const points = this.racingLine.bestLapLine?.points || this.racingLine.points;
+      if (points.length > 0) {
+        // Get current target point
+        const targetPoint = points[this.racingLine.autoMode.currentPointIndex];
+        
+        // Look ahead a few points to smooth the path at higher speeds
+        const nextIndex = (this.racingLine.autoMode.currentPointIndex + 1) % points.length;
+        const nextPoint = points[nextIndex];
+        
+        // Calculate a target position that looks ahead based on speed
+        const lookAheadAmount = 0.5; // 0 = current point, 1 = next point
+        const targetX = Phaser.Math.Linear(targetPoint.x, nextPoint.x, lookAheadAmount);
+        const targetY = Phaser.Math.Linear(targetPoint.y, nextPoint.y, lookAheadAmount);
+        
+        // Calculate distance to interpolated target
+        const distance = Phaser.Math.Distance.Between(
+          this.car.x, this.car.y,
+          targetX, targetY
+        );
+
+        // Move to next point if close enough to current target
+        if (distance < 10) {
+          this.racingLine.autoMode.currentPointIndex = nextIndex;
+          return;
+        }
+        
+        // Calculate angle to target
+        const angle = Phaser.Math.Angle.Between(
+          this.car.x, this.car.y,
+          targetX, targetY
+        );
+        
+        // Smoothly rotate the car (lerp the rotation)
+        const targetRotation = angle + Math.PI/2;
+        const rotationDiff = Phaser.Math.Angle.Wrap(targetRotation - this.car.rotation);
+        this.car.rotation += rotationDiff * 0.2; // Adjust this value to control rotation speed
+        
+        // Use a fixed base speed
+        const speed = 605;
+        
+        // Move towards the point at controlled speed
+        this.car.body.velocity.x = Math.cos(angle) * speed;
+        this.car.body.velocity.y = Math.sin(angle) * speed;
+        
+        // Update car data for UI
+        this.car.data.speed = speed;
+        
+        return;
+      }
+    }
+    
+    // Regular car movement code for manual control
     // Get current surface properties
     const surface = this.trackConfig.surfaces[this.car.data.surface];
     
