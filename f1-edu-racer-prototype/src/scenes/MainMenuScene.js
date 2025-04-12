@@ -98,9 +98,9 @@ export default class MainMenuScene extends Phaser.Scene {
         qualifyingButtonBg.fillRoundedRect(-120, 35, 240, 50, 5);
       })
       .on('pointerdown', () => {
-        // Update URL without reloading and start qualifying scene
+        // Update URL without reloading and start player name scene
         window.history.pushState({}, '', '/qualifying');
-        this.scene.start('QualifyingScene');
+        this.scene.start('PlayerNameScene');
       });
       
     buttonContainer.add([qualifyingButtonBg, qualifyingButton]);

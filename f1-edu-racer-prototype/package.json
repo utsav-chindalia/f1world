@@ -6,13 +6,20 @@
   "scripts": {
     "dev": "vite --host",
     "build": "vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "db:migration:new": "supabase migration new",
+    "db:migration:up": "supabase migration up",
+    "db:reset": "supabase db reset",
+    "db:push": "supabase db push"
   },
   "devDependencies": {
+    "supabase": "^1.145.4",
     "vite": "^6.2.0"
   },
   "dependencies": {
+    "@supabase/supabase-js": "^2.49.4",
     "canvas": "^3.1.0",
-    "phaser": "^3.60.0"
+    "phaser": "^3.60.0",
+    "zustand": "^4.5.2"
   }
 }
