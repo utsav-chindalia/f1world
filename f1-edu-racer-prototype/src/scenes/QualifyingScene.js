@@ -14,7 +14,7 @@ export default class QualifyingScene extends Phaser.Scene {
     window.qualifyingScene = this;
     
     // Flag to disable database connections for local development
-    this.disableDB = true; // Can be set to true to disable all DB operations
+    this.disableDB = false; // Can be set to true to disable all DB operations
     
     // Track properties
     this.trackConfig = {
@@ -60,7 +60,7 @@ export default class QualifyingScene extends Phaser.Scene {
       lapHistory: {}, // Store all lap attempts with their racing lines
       isLapActive: false,
       showRacingLine: false, // Default racing line visibility to false
-      captureEnabled: false  // Default capture to false
+      captureEnabled: true  // Default capture to false
     };
 
     // Car properties
@@ -939,158 +939,55 @@ export default class QualifyingScene extends Phaser.Scene {
   async onStartFinishLineCross() {
     const now = this.time.now;
 
-    // Ignore very short intervals between finish line crosses to prevent double counting
-    if (now - this.raceData.lastCheckpointTime < 5000) return;
+    // Strict cooldown check - increased to prevent any accidental double counts
+    if (now - this.raceData.lastCheckpointTime < 8000) {
+        return;
+    }
+
+    // Get car's velocity to ensure it's actually moving
+    const carSpeed = this.car.body.velocity.length();
+    if (carSpeed < 50) {  // Minimum speed threshold
+        return;
+    }
 
     if (!this.raceData.hasPassedStartLine) {
-        // Starting a new lap
+        // Starting first lap or new lap
         this.raceData.hasPassedStartLine = true;
         this.raceData.currentLapStartTime = now;
         this.raceData.lastCheckpointTime = now;
-        
-        // Only start recording if capture is enabled and we're in a valid state
-        if (!this.raceData.lapInvalidated && this.racingLineRecorder.captureEnabled) {
-            this.racingLineRecorder.isLapActive = true;
-            this.racingLineRecorder.currentLapPoints = [];
-            console.log('\n=== Starting New Lap Recording ===');
-            console.log('Racing line capture enabled - recording points...');
-        }
-        
-        // Reset lap invalidation status
-        if (this.raceData.lapInvalidated) {
-            this.raceData.lapInvalidated = false;
-            this.ui.lapTime.setColor('#ffffff');
-        }
         
         // If this is the first lap, start the race timer
         if (this.raceData.currentLap === 0) {
             this.raceData.raceStartTime = now;
             this.raceData.currentLap = 1;
-            console.log('Race started!');
+            this.updateUI();
         }
     } else {
         // Completing a lap
         const lapTime = now - this.raceData.currentLapStartTime;
         
-        if (!this.raceData.lapInvalidated) {
+        // Only process if it's a valid lap time (more than 5 seconds)
+        if (lapTime > 5000) {
             this.raceData.lapTimes.push(lapTime);
             
-            console.log(`\n=== Lap ${this.raceData.currentLap} Completed ===`);
-            console.log(`Lap Time: ${this.formatTime(lapTime)}`);
-            
-            // Create lap data object
-            const lapData = {
-                lapTime: lapTime,
-                formattedTime: this.formatTime(lapTime),
-                timestamp: now,
-                isValid: true,
-                metadata: {
-                    carConfig: { ...this.carConfig },
-                    trackConditions: 'dry',
-                    timestamp: now,
-                    track_id: 'default_track'
-                }
-            };
-
-            if (this.racingLineRecorder.isLapActive) {
-                lapData.points = [...this.racingLineRecorder.currentLapPoints];
-                
-                // Save racing line and lap time to Supabase only if DB is not disabled
-                if (!this.disableDB) {
-                    try {
-                        const result = await RacingLineService.saveRacingLine({
-                            lapTime: Math.floor(lapTime),
-                            points: lapData.points,
-                            metadata: lapData.metadata,
-                            track_id: lapData.metadata.track_id
-                        });
-
-                        console.log('Racing line and lap time saved to Supabase:', result);
-                        
-                        this.racingLineRecorder.lapHistory[this.raceData.currentLap] = {
-                            ...lapData,
-                            supabaseId: result.racingLine.id
-                        };
-
-                        this.ui.notification.setText('Lap time saved! 🏁');
-                        this.ui.notification.setColor('#00ff00');
-                        this.time.delayedCall(2000, () => {
-                            this.ui.notification.setText('');
-                        });
-                    } catch (error) {
-                        console.error('Error saving racing line and lap time to Supabase:', error);
-                        this.ui.notification.setText('Failed to save lap time ❌');
-                        this.ui.notification.setColor('#ff0000');
-                        this.time.delayedCall(2000, () => {
-                            this.ui.notification.setText('');
-                        });
-                        this.racingLineRecorder.lapHistory[this.raceData.currentLap] = lapData;
-                    }
-                } else {
-                    // If DB is disabled, just store in local history
-                    this.racingLineRecorder.lapHistory[this.raceData.currentLap] = lapData;
-                    console.log('DB disabled - Lap data stored locally only');
-                }
-                
-                if (lapData.points.length > 0) {
-                    console.log(`\n=== Racing Line Data ===`);
-                    console.log(`Total Points Recorded: ${lapData.points.length}`);
-                    console.log(`First Point: ${JSON.stringify(lapData.points[0])}`);
-                    console.log(`Last Point: ${JSON.stringify(lapData.points[lapData.points.length - 1])}`);
-                    console.log('\nTo view detailed lap data, use:');
-                    console.log(`window.qualifyingScene.printLapData(${this.raceData.currentLap})`);
-                }
-            }
-
-            // Update best lap time
+            // Update best lap time if applicable
             if (!this.raceData.bestLapTime || lapTime < this.raceData.bestLapTime) {
                 this.raceData.bestLapTime = lapTime;
-                console.log('\n🏆 NEW BEST LAP! 🏆');
-                console.log(`Time: ${this.formatTime(lapTime)}`);
-                
-                if (this.racingLineRecorder.isLapActive) {
-                    this.racingLineRecorder.bestLap = {
-                        lapNumber: this.raceData.currentLap,
-                        time: lapTime,
-                        formattedTime: this.formatTime(lapTime),
-                        points: [...this.racingLineRecorder.currentLapPoints]
-                    };
-                    this.racingLineRecorder.bestLapLine = [...this.racingLineRecorder.currentLapPoints];
-                    console.log(`Best lap racing line updated with ${this.racingLineRecorder.bestLap.points.length} points!`);
-                }
-                
-                this.ui.bestLap.setColor('#00ff00');
-                this.time.delayedCall(1000, () => {
-                    this.ui.bestLap.setColor('#ffffff');
-                });
+                this.ui.bestLap.setText(`BEST LAP: ${this.formatTime(lapTime)}`);
             }
             
-            // Output summary of all laps
-            console.log('\n=== Session Summary ===');
-            console.log(`Total Laps: ${this.raceData.lapTimes.length}`);
-            console.log(`Best Lap: ${this.formatTime(this.raceData.bestLapTime)}`);
-            console.log('All Lap Times:');
-            this.raceData.lapTimes.forEach((time, index) => {
-                const lapNumber = index + 1;
-                const lapHasPoints = this.racingLineRecorder.lapHistory[lapNumber]?.points?.length > 0;
-                console.log(`Lap ${lapNumber}: ${this.formatTime(time)}${lapHasPoints ? ' (Racing line recorded)' : ''}`);
-            });
-        } else {
-            console.log('\n❌ Lap Invalidated - No data saved');
-        }
-        
-        // Reset for next lap
-        this.racingLineRecorder.isLapActive = false;
-        this.racingLineRecorder.currentLapPoints = [];
-        this.raceData.hasPassedStartLine = false;
-        this.raceData.currentLap++;
-        this.raceData.checkpointsPassed.clear();
-        this.raceData.lapInvalidated = false;
-        this.ui.lapTime.setColor('#ffffff');
-        
-        // Check if race is complete
-        if (this.raceData.currentLap > this.raceData.totalLaps) {
-            this.onRaceComplete();
+            // Reset for next lap
+            this.raceData.hasPassedStartLine = false;
+            this.raceData.currentLap++;
+            this.raceData.lastCheckpointTime = now;
+            
+            // Check if race is complete
+            if (this.raceData.currentLap > this.raceData.totalLaps) {
+                this.onRaceComplete();
+                return;
+            }
+            
+            this.updateUI();
         }
     }
   }

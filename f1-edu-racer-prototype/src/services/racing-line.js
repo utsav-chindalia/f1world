@@ -16,6 +16,7 @@ export const RacingLineService = {
         .insert({
           lap_time: data.lapTime,
           track_id: data.track_id,
+          player_id: data.player_id,
           is_valid: true
         })
         .select()

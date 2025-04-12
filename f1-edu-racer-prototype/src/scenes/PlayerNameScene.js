@@ -1,4 +1,5 @@
 import Phaser from 'phaser';
+import { PlayerService } from '../services/player';
 
 export default class PlayerNameScene extends Phaser.Scene {
     constructor() {
@@ -149,14 +150,26 @@ export default class PlayerNameScene extends Phaser.Scene {
         inputElement.focus();
     }
 
-    handleStartClick(inputElement) {
+    async handleStartClick(inputElement) {
         const playerName = inputElement.value.trim();
 
         if (playerName) {
-            // Store the player name
-            localStorage.setItem('playerName', playerName);
-            // Start the qualifying scene
-            this.scene.start('QualifyingScene');
+            try {
+                // Create/update player in database
+                const player = await PlayerService.upsertPlayer({
+                    username: playerName
+                });
+
+                // Store both player name and ID
+                localStorage.setItem('playerName', playerName);
+                localStorage.setItem('playerId', player.id);
+
+                // Start the qualifying scene
+                this.scene.start('QualifyingScene');
+            } catch (error) {
+                console.error('Error creating player:', error);
+                this.showError('Failed to create player. Please try again.');
+            }
         } else {
             this.showError('Please enter your name');
         }
