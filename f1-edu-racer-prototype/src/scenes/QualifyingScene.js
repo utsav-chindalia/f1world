@@ -132,6 +132,7 @@ export default class QualifyingScene extends Phaser.Scene {
       totalLaps: 100,
       lapTimes: [],
       bestLapTime: null,
+      sessionBestLap: null,  // Add session best lap time
       raceStartTime: 0,
       lastCheckpointTime: 0,
       checkpointsPassed: new Set(),
@@ -152,7 +153,9 @@ export default class QualifyingScene extends Phaser.Scene {
       bestLap: null,
       notification: null,  // Add notification text element
       debugCoords: null,  // Add debug coordinates text element
-      playerName: null
+      playerName: null,
+      leaderboard: null,  // Add leaderboard container
+      leaderboardEntries: []  // Array to store leaderboard text objects
     };
 
     // F1 style colors
@@ -232,32 +235,19 @@ export default class QualifyingScene extends Phaser.Scene {
     // Only fetch from DB if not disabled
     if (!this.disableDB) {
       try {
-        const bestLine = await RacingLineService.getBestRacingLine();
-        if (bestLine) {
-          this.racingLine.bestLapLine = bestLine;
-          // Update best lap time display
-          if (bestLine.lap_record) {
-            this.raceData.bestLapTime = bestLine.lap_record.lap_time;
-            this.ui.bestLap.setText(`BEST LAP: ${this.formatTime(bestLine.lap_record.lap_time)}`);
-          }
-        }
+        // Fetch top lap times for leaderboard
+        const topLapTimes = await RacingLineService.getTopLapTimes(3);
+        this.updateLeaderboard(topLapTimes);
       } catch (error) {
-        console.error('Error fetching best racing line:', error);
+        console.error('Error fetching leaderboard:', error);
       }
 
       // Subscribe to new racing lines only if DB is enabled
-      this.racingLine.subscription = RacingLineService.subscribeToNewRacingLines((payload) => {
+      this.racingLine.subscription = RacingLineService.subscribeToNewRacingLines(async (payload) => {
         if (payload.new && payload.new.lap_record) {
-          const newTime = payload.new.lap_record.lap_time;
-          if (!this.raceData.bestLapTime || newTime < this.raceData.bestLapTime) {
-            this.raceData.bestLapTime = newTime;
-            this.racingLine.bestLapLine = payload.new;
-            this.ui.bestLap.setText(`BEST LAP: ${this.formatTime(newTime)}`);
-            this.ui.bestLap.setColor('#00ff00');
-            this.time.delayedCall(1000, () => {
-              this.ui.bestLap.setColor('#ffffff');
-            });
-          }
+          // Update leaderboard when new time is set
+          const topLapTimes = await RacingLineService.getTopLapTimes(3);
+          this.updateLeaderboard(topLapTimes);
         }
       });
     }
@@ -564,8 +554,8 @@ export default class QualifyingScene extends Phaser.Scene {
       strokeThickness: 4
     });
 
-    // Add best lap time with adjusted position
-    this.ui.bestLap = this.add.text(20, 220, 'BEST LAP: --:--.---', {
+    // Add session best lap time
+    this.ui.bestLap = this.add.text(20, 220, 'SESSION BEST: --:--.---', {
       fontSize: '28px',
       fontFamily: 'Titillium Web',
       color: '#00ff00',
@@ -591,7 +581,34 @@ export default class QualifyingScene extends Phaser.Scene {
       strokeThickness: 3
     });
     this.ui.debugCoords.setVisible(this.debug.showClickCoordinates);
-    
+
+    // Create leaderboard container
+    this.ui.leaderboard = this.add.container(this.cameras.main.width - 300, 20);
+    this.ui.leaderboard.setScrollFactor(0);
+
+    // Add leaderboard title
+    const leaderboardTitle = this.add.text(0, 0, 'GLOBAL LEADERBOARD', {
+      fontSize: '32px',
+      fontFamily: 'Titillium Web',
+      color: '#00D2BE',
+      stroke: '#000000',
+      strokeThickness: 4
+    });
+    this.ui.leaderboard.add(leaderboardTitle);
+
+    // Create leaderboard entries
+    for (let i = 0; i < 3; i++) {
+      const entry = this.add.text(0, 50 + (i * 40), `${i + 1}. --:--.--- (----)`, {
+        fontSize: '24px',
+        fontFamily: 'Titillium Web',
+        color: '#ffffff',
+        stroke: '#000000',
+        strokeThickness: 3
+      });
+      this.ui.leaderboardEntries.push(entry);
+      this.ui.leaderboard.add(entry);
+    }
+
     // Add all UI elements to container
     this.ui.container.add([
       this.ui.playerName,
@@ -610,6 +627,12 @@ export default class QualifyingScene extends Phaser.Scene {
     uiBackground.setScrollFactor(0);
     this.ui.container.add(uiBackground);
     this.ui.container.sendToBack(uiBackground);
+
+    // Add leaderboard background
+    const leaderboardBg = this.add.rectangle(0, 0, 280, 200, 0x000000, 0.5);
+    leaderboardBg.setOrigin(0, 0);
+    this.ui.leaderboard.add(leaderboardBg);
+    this.ui.leaderboard.sendToBack(leaderboardBg);
   }
 
   setupPhysics() {
@@ -675,11 +698,11 @@ export default class QualifyingScene extends Phaser.Scene {
         this.ui.lapTime.setText(`LAP TIME: ${this.formatTime(currentLapTime)}`);
     }
     
-    // Show best lap time if exists
-    if (this.raceData.bestLapTime) {
-        this.ui.bestLap.setText(`BEST LAP: ${this.formatTime(this.raceData.bestLapTime)}`);
+    // Show session best lap time if exists
+    if (this.raceData.sessionBestLap) {
+        this.ui.bestLap.setText(`SESSION BEST: ${this.formatTime(this.raceData.sessionBestLap)}`);
     } else {
-        this.ui.bestLap.setText('BEST LAP: --:--.---');
+        this.ui.bestLap.setText('SESSION BEST: --:--.---');
     }
   }
 
@@ -945,10 +968,10 @@ export default class QualifyingScene extends Phaser.Scene {
     }
 
     // Get car's velocity to ensure it's actually moving
-    const carSpeed = this.car.body.velocity.length();
-    if (carSpeed < 50) {  // Minimum speed threshold
-        return;
-    }
+    // const carSpeed = this.car.body.velocity.length();
+    // if (carSpeed < 50) {  // Minimum speed threshold
+    //     return;
+    // }
 
     if (!this.raceData.hasPassedStartLine) {
         // Starting first lap or new lap
@@ -964,22 +987,67 @@ export default class QualifyingScene extends Phaser.Scene {
         }
     } else {
         // Completing a lap
-        const lapTime = now - this.raceData.currentLapStartTime;
+        const lapTime = Math.round(now - this.raceData.currentLapStartTime); // Round to nearest integer
         
         // Only process if it's a valid lap time (more than 5 seconds)
         if (lapTime > 5000) {
             this.raceData.lapTimes.push(lapTime);
             
-            // Update best lap time if applicable
-            if (!this.raceData.bestLapTime || lapTime < this.raceData.bestLapTime) {
-                this.raceData.bestLapTime = lapTime;
-                this.ui.bestLap.setText(`BEST LAP: ${this.formatTime(lapTime)}`);
+            // Update session best lap time if applicable
+            if (!this.raceData.sessionBestLap || lapTime < this.raceData.sessionBestLap) {
+                this.raceData.sessionBestLap = lapTime;
+                this.ui.bestLap.setText(`SESSION BEST: ${this.formatTime(lapTime)}`);
+                this.ui.bestLap.setColor('#00ff00');
+                this.time.delayedCall(1000, () => {
+                    this.ui.bestLap.setColor('#ffffff');
+                });
+
+                // Save lap record to database if not disabled
+                if (!this.disableDB && !this.raceData.lapInvalidated) {
+                    try {
+                        const playerId = localStorage.getItem('playerId');
+                        if (!playerId) {
+                            console.error('No player ID found');
+                            return;
+                        }
+
+                        const lapData = {
+                            lapTime: Math.round(lapTime), // Ensure integer for database
+                            track_id: 'default_track', // You may want to make this configurable
+                            player_id: playerId,
+                            points: this.racingLineRecorder.currentLapPoints,
+                            metadata: {
+                                playerName: this.playerName,
+                                timestamp: now
+                            }
+                        };
+                        
+                        await RacingLineService.saveRacingLine(lapData);
+                        
+                        // Show success notification
+                        this.ui.notification.setText('Lap record saved!');
+                        this.ui.notification.setColor('#00ff00');
+                        this.time.delayedCall(2000, () => {
+                            this.ui.notification.setText('');
+                        });
+                    } catch (error) {
+                        console.error('Error saving lap record:', error);
+                        // Show error notification
+                        this.ui.notification.setText('Failed to save lap record');
+                        this.ui.notification.setColor('#ff0000');
+                        this.time.delayedCall(2000, () => {
+                            this.ui.notification.setText('');
+                        });
+                    }
+                }
             }
             
             // Reset for next lap
             this.raceData.hasPassedStartLine = false;
             this.raceData.currentLap++;
             this.raceData.lastCheckpointTime = now;
+            this.racingLineRecorder.currentLapPoints = []; // Clear points for next lap
+            this.raceData.lapInvalidated = false; // Reset lap invalidation
             
             // Check if race is complete
             if (this.raceData.currentLap > this.raceData.totalLaps) {
@@ -1205,5 +1273,16 @@ export default class QualifyingScene extends Phaser.Scene {
     if (!points || points.length === 0) return 0;
     const avgSpeed = points.reduce((sum, point) => sum + point.speed, 0) / points.length;
     return Math.round(avgSpeed * 3.6); // Convert to KPH and round
+  }
+
+  updateLeaderboard(topLapTimes) {
+    topLapTimes.forEach((record, index) => {
+      if (record.lap_record) {
+        const playerName = record.lap_record.player?.username || 'Unknown';
+        const time = this.formatTime(record.lap_record.lap_time);
+        const medal = index === 0 ? '🥇' : index === 1 ? '🥈' : '🥉';
+        this.ui.leaderboardEntries[index].setText(`${medal} ${time} (${playerName})`);
+      }
+    });
   }
 } 
