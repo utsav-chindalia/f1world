@@ -54,7 +54,12 @@ export const RacingLineService = {
         .from('racing_lines')
         .select(`
           *,
-          lap_record:lap_records(*)
+          lap_record:lap_records(
+            *,
+            player:players(
+              username
+            )
+          )
         `)
         .order('lap_record(lap_time)', { ascending: true })
         .limit(1)
@@ -64,6 +69,35 @@ export const RacingLineService = {
       return data
     } catch (error) {
       console.error('Error getting best racing line:', error)
+      throw error
+    }
+  },
+
+  /**
+   * Get top lap times with player information
+   * @param {number} limit - Number of records to return
+   * @returns {Promise<Array>} Array of top lap times with player info
+   */
+  async getTopLapTimes(limit = 3) {
+    try {
+      const { data, error } = await supabase
+        .from('racing_lines')
+        .select(`
+          *,
+          lap_record:lap_records(
+            *,
+            player:players(
+              username
+            )
+          )
+        `)
+        .order('lap_record(lap_time)', { ascending: true })
+        .limit(limit)
+
+      if (error) throw error
+      return data
+    } catch (error) {
+      console.error('Error getting top lap times:', error)
       throw error
     }
   },
